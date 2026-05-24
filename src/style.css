@@ -1,0 +1,29 @@
+/* KOD RESET SKRIN PENUH UNIVERSAL */
+
+html, body {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden !important; /* Paksa hilangkan semua jenis scroll */
+  background-color: #0b0f19;
+}
+
+#app {
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Cantikkan sikit popup Leaflet */
+.leaflet-popup-content-wrapper {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 4px;
+}
