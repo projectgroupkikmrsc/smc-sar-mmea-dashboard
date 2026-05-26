@@ -965,13 +965,15 @@ const bukaModalTambahKes = () => {
 }
 
 const simpanKesBaruSupabase = async () => {
-  if (!formAddKes.value.case_name.trim()) { alert("Sila masukkan Nama Kes!"); return }
+  if (!formAddKes.value.case_name.trim() || !formAddKes.value.case_no.trim()) { alert("Sila masukkan No Kes dan Nama Kes!"); return }
   
   try {
     const { data, error } = await supabase
-      .from('sar_incidents')
+      .from('sar_incidents') // Sila pastikan nama table di Dashboard Supabase tepat 'sar_incidents'
       .insert([{ 
+        case_no: formAddKes.value.case_no.trim(),
         case_name: formAddKes.value.case_name.toUpperCase().trim(), 
+        search_object: formAddKes.value.search_object.trim(),
         status: 'active', 
         region: activeRegion.value 
       }])
