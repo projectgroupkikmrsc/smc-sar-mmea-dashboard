@@ -1,5 +1,5 @@
 <template>
-  <div style="font-family: 'Segoe UI', Roboto, sans-serif; background-color: #0b0f19; height: 100vh; width: 100vw; display: flex; flex-direction: column; color: #f1f5f9; overflow: hidden; box-sizing: border-box; margin: 0; padding: 0;">
+  <div style="font-family: 'Segoe UI', Roboto, sans-serif; background-color: #0b0f19; min-height: 100dvh; min-width: 1280px; width: 100%; display: flex; flex-direction: column; color: #f1f5f9; overflow: auto; box-sizing: border-box; margin: 0; padding: 0;">
     
     <div v-if="!isLoggedIn" :style="{ flex: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundImage: `url(${bgLogin})`, backgroundSize: 'cover', backgroundPosition: 'center', position: 'relative' }">
       <div style="position: absolute; width: 100%; height: 100%; opacity: 0.03; background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px); background-size: 20px 20px;"></div>
@@ -433,18 +433,7 @@ const pemetaanStesenRegion = {
   'MRSC Kuching': 'SARAWAK'
 }
 
-const prosesLoginMMEA = async () => {
-  if (!loginForm.value.stationId) { loginError.value = 'Sila pilih Username / Station ID anda!'; return }
-  if (loginForm.value.password !== 'mrsc@123') { loginError.value = 'Security Password tidak sah!'; return }
-
-  activeStation.value = loginForm.value.stationId
-  activeRegion.value = pemetaanStesenRegion[loginForm.value.stationId]
-  loginError.value = ''
-  isLoggedIn.value = true
-
-  tacticalLogs.value.unshift(`🔑 HQ INTERFACE LOCKED: ${activeStation.value}`)
-
-  // Ensure DOM is updated before initializing map and subscriptions
+const initializeDashboard = async () => {
   await nextTick()
   await tarikDataKes()
   initMap()
@@ -453,8 +442,43 @@ const prosesLoginMMEA = async () => {
   langganMesejRealtimeSupabase()
 }
 
+onMounted(async () => {
+  // Semak jika ada sesi tersimpan dalam browser
+  const savedStatus = localStorage.getItem('isLoggedIn')
+  if (savedStatus === 'true') {
+    activeStation.value = localStorage.getItem('activeStation') || ''
+    activeRegion.value = localStorage.getItem('activeRegion') || ''
+    isLoggedIn.value = true
+    await initializeDashboard()
+  }
+})
+
+const prosesLoginMMEA = async () => {
+  if (!loginForm.value.stationId) { loginError.value = 'Sila pilih Username / Station ID anda!'; return }
+  if (loginForm.value.password !== 'mrsc@123') { loginError.value = 'Security Password tidak sah!'; return }
+
+  activeStation.value = loginForm.value.stationId
+  activeRegion.value = pemetaanStesenRegion[loginForm.value.stationId]
+  
+  // Simpan sesi ke localStorage
+  localStorage.setItem('isLoggedIn', 'true')
+  localStorage.setItem('activeStation', activeStation.value)
+  localStorage.setItem('activeRegion', activeRegion.value)
+  
+  loginError.value = ''
+  isLoggedIn.value = true
+
+  tacticalLogs.value.unshift(`🔑 HQ INTERFACE LOCKED: ${activeStation.value}`)
+  await initializeDashboard()
+}
+
 const prosesLogKeluar = () => {
-  isLoggedIn.value = false; loginForm.value.password = ''
+  if (!confirm("Adakah anda pasti ingin log keluar dari sistem?")) return
+
+  isLoggedIn.value = false
+  loginForm.value.password = ''
+  localStorage.clear() // Padam semua sesi tersimpan
+  
   if(mapInstance) { mapInstance.remove(); mapInstance = null }
   supabase.removeAllChannels()
 }
@@ -942,12 +966,32 @@ const bukaModalTambahKes = () => {
 
 const simpanKesBaruSupabase = async () => {
   if (!formAddKes.value.case_name.trim()) { alert("Sila masukkan Nama Kes!"); return }
-  const { data, error } = await supabase.from('sar_incidents').insert([{ case_name: formAddKes.value.case_name.toUpperCase().trim(), status: 'active', region: activeRegion.value }]).select()
-  if (!error && data.length > 0) {
-    await tarikDataKes()
-    selectedCaseId.value = data[0].id 
-    tukarKesTaktikal()
-    showAddCaseModal.value = false
+  
+  try {
+    const { data, error } = await supabase
+      .from('sar_incidents')
+      .insert([{ 
+        case_name: formAddKes.value.case_name.toUpperCase().trim(), 
+        status: 'active', 
+        region: activeRegion.value 
+      }])
+      .select()
+
+    if (error) {
+      console.error("Supabase Error:", error)
+      alert("Gagal mencipta kes: " + error.message)
+      return
+    }
+
+    if (data && data.length > 0) {
+      await tarikDataKes()
+      selectedCaseId.value = data[0].id 
+      tukarKesTaktikal()
+      showAddCaseModal.value = false
+    }
+  } catch (err) {
+    console.error("Fatal Error:", err)
+    alert("Ralat sistem: Sila pastikan peranti anda mempunyai capaian internet ke pelayan Supabase.")
   }
 }
 
@@ -1111,8 +1155,12 @@ const tarikDataKes = async () => {
   if (activeStation.value !== 'MRCC Putrajaya') {
     query = query.eq('region', activeRegion.value)
   }
-  const { data, error } = await query.order('id', { ascending: false })
-  if (!error) senaraiKes.value = data
+  try {
+    const { data, error } = await query.order('id', { ascending: false })
+    if (!error) senaraiKes.value = data || []
+  } catch (err) {
+    console.error("Gagal menarik data kes:", err)
+  }
 }
 
 // CHAT MANAGEMENT
