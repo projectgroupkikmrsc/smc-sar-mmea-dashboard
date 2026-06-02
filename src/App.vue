@@ -1224,31 +1224,19 @@ const langganMesejRealtimeSupabase = () => {
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sar_messages' }, (payload) => {
       const r = payload.new
       
-      // 🛡️ PENAPIS PENTING: Abaikan mesej pantulan dari diri sendiri sebab kita dah lukis awal
+      // 🛡️ PENAPIS PENTING: Abaikan mesej pantulan dari diri sendiri
       if (r.sender === activeStation.value) return
 
-      // Logik Penapisan Taktikal Tab
-      if (r.chat_type === 'global' && r.case_id === null) {
-        // Global message received
-        if (isGlobalChatActive.value) {
-          senaraiMesejChat.value.push(r);
-        } else {
-          globalUnreadCount.value++; // Increment unread count if global tab is not active
-        }
-      } else {
-        // Local message received
-        if (!isCaseSelected.value) return; // No local messages for 'ALL' view
+      // Masukkan terus mesej ke dalam array utama.
+      // Penapisan untuk paparan (Global vs Local) akan dikendalikan secara automatik 
+      // oleh computed property 'filteredMesejChat'.
+      senaraiMesejChat.value.push(r)
 
-        // Security Access Control: Only push if the case belongs to the active station's region AND local tab is active
-        if (!isCaseOwnedByStation.value || !isLocalChatActive.value) {
-          return; // Access restricted or not in local tab, do not push
-        }
-
-        if (r.chat_type === 'local' && r.case_id === Number(selectedCaseId.value)) { // Ensure case ID matches
-          senaraiMesejChat.value.push(r)
-        }
+      // Kira 'unread count' untuk tab global jika user sedang berada di tab lain
+      if (r.chat_type === 'global' && !isGlobalChatActive.value) {
+        globalUnreadCount.value++
       }
-      
+
       autoScrollChatKeBawah()
     }).subscribe()
 }
@@ -1323,12 +1311,12 @@ const hantarMesejChatSupabase = async () => {
   senaraiMesejChat.value.push(mesejLokal)
   autoScrollChatKeBawah()
 
-  const { error } = await supabase.from('sar_messages').insert({
+  const { error } = await supabase.from('sar_messages').insert([{
     case_id: currentTab === 'global' ? null : Number(selectedCaseId.value),
     sender: activeStation.value,
     message: teksMesej,
     chat_type: currentTab
-  })
+  }])
   if (error) {
     console.error("Gagal hantar mesej:", error)
   }
