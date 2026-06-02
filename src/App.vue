@@ -1212,34 +1212,41 @@ const fetchChatMessages = async () => {
 
 // 📡 FUNGSI RADAR REALTIME (MENANGKAP MESEJ DARI STESEN LAIN)
 const langganMesejRealtimeSupabase = () => {
-  // Bersihkan langganan sedia ada jika ada
   if (chatChannelSubscription) {
     supabase.removeChannel(chatChannelSubscription)
   }
   
   fetchChatMessages() 
 
-  // Menggunakan nama saluran unik khusus untuk mengelakkan pertembungan cache Cloudflare
-  chatChannelSubscription = supabase.channel('messages-realtime-channel')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sar_messages' }, (payload) => {
-      const r = payload.new
-      
-      if (r.sender === activeStation.value) return
+  // ✅ KOD BARU: Guna nama channel raw untuk bypass proxy Cloudflare
+  chatChannelSubscription = supabase.channel('sar-messages-live')
+    .on(
+      'postgres_changes', 
+      { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'sar_messages' 
+      }, 
+      (payload) => {
+        console.log("📥 Mesej Real-time diterima:", payload.new)
+        const r = payload.new
+        
+        if (r.sender === activeStation.value) return
 
-      // Memastikan mesej dimasukkan secara reaktif ke dalam memori array tanpa duplikasi
-      const wujud = senaraiMesejChat.value.some(m => m.id === r.id)
-      if (!wujud) {
-        senaraiMesejChat.value.push(r)
+        const wujud = senaraiMesejChat.value.some(m => m.id === r.id)
+        if (!wujud) {
+          senaraiMesejChat.value.push(r)
+        }
+
+        if (r.chat_type === 'global' && !isGlobalChatActive.value) {
+          globalUnreadCount.value++
+        }
+
+        autoScrollChatKeBawah()
       }
-
-      if (r.chat_type === 'global' && !isGlobalChatActive.value) {
-        globalUnreadCount.value++
-      }
-
-      autoScrollChatKeBawah()
-    })
+    )
     .subscribe((status) => {
-      console.log("📡 Status Langganan Realtime Terkini:", status)
+      console.log("📡 Status Langganan Chat:", status)
     })
 }
 
