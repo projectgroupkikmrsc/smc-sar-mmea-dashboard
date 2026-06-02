@@ -969,7 +969,7 @@ const simpanKesBaruSupabase = async () => {
   
   try {
     const { data, error } = await supabase
-      .from('sar_incidents') // Sila pastikan nama table di Dashboard Supabase tepat 'sar_incidents'
+      .from('sar_incidents')
       .insert([{ 
         case_no: formAddKes.value.case_no.trim(),
         case_name: formAddKes.value.case_name.toUpperCase().trim(), 
@@ -1153,11 +1153,11 @@ const sahkanPadamSRU = async () => {
 }
 
 const tarikDataKes = async () => {
-  let query = supabase.from('sar_incidents').select('*')
-  if (activeStation.value !== 'MRCC Putrajaya') {
-    query = query.eq('region', activeRegion.value)
-  }
   try {
+    let query = supabase.from('sar_incidents').select('*')
+    if (activeStation.value !== 'MRCC Putrajaya') {
+      query = query.eq('region', activeRegion.value)
+    }
     const { data, error } = await query.order('id', { ascending: false })
     if (!error) senaraiKes.value = data || []
   } catch (err) {
@@ -1186,7 +1186,7 @@ const putuskanLanggananChatRealtime = () => {
 }
 
 const fetchChatMessages = async () => {
-  let query = supabase.from('sar_messages').select('*').order('created_at', { ascending: true })
+  let query = supabase.from('sar_messages').select('*')
   
   if (activeChatTab.value === 'global') {
     query = query.eq('chat_type', 'global').is('case_id', null)
@@ -1204,7 +1204,7 @@ const fetchChatMessages = async () => {
     }
   }
 
-  const { data, error } = await query
+  const { data, error } = await query.order('created_at', { ascending: true })
   if (!error) {
     senaraiMesejChat.value = data
     autoScrollChatKeBawah()
