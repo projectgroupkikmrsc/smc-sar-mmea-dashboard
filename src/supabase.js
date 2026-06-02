@@ -1,8 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Membersihkan URL daripada sebarang tanda '/' di hujung untuk mengelakkan ralat API routing
-const rawUrl = import.meta.env.VITE_SUPABASE_URL || ''
-const supabaseUrl = rawUrl.replace(/\/$/, '')
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+// Taktik hibrid: Guna gaya Vite, kalau tak jumpa guna gaya Cloudflare
+const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL || process.env?.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || process.env?.VITE_SUPABASE_ANON_KEY
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Buat pembersihan automatik kalau ada tanda slash '/' sesat kat hujung URL
+const cleanUrl = supabaseUrl ? supabaseUrl.replace(/\/$/, '') : ''
+
+export const supabase = createClient(cleanUrl, supabaseAnonKey)
