@@ -972,7 +972,7 @@ const simpanKesBaruSupabase = async () => {
       .from('sar_incidents')
       .insert([{ 
         case_no: formAddKes.value.case_no.trim(),
-        case_name: formAddKes.value.case_name.toUpperCase().trim(), 
+        case_name: formAddKes.value.case_name.trim(), 
         search_object: formAddKes.value.search_object.trim(),
         status: 'active', 
         region: activeRegion.value 
