@@ -527,7 +527,11 @@ const senaraiKesAktifSahaja = computed(() => {
 const isGlobalChatActive = computed(() => activeChatTab.value === 'global');
 const isLocalChatActive = computed(() => activeChatTab.value === 'local');
 const isCaseSelected = computed(() => selectedCaseId.value !== 'ALL');
-const isCaseOwnedByStation = computed(() => selectedCase.value && selectedCase.value.region === activeRegion.value);
+const isCaseOwnedByStation = computed(() => {
+  if (selectedCaseId.value === 'ALL') return true;
+  if (activeStation.value === 'MRCC Putrajaya') return true;
+  return selectedCase.value && selectedCase.value.region === activeRegion.value;
+});
 
 const selectedCase = computed(() => {
   if (selectedCaseId.value === 'ALL') return null
