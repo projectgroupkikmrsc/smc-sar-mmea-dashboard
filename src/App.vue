@@ -528,7 +528,7 @@ const isGlobalChatActive = computed(() => activeChatTab.value === 'global');
 const isLocalChatActive = computed(() => activeChatTab.value === 'local');
 const isCaseSelected = computed(() => selectedCaseId.value !== 'ALL');
 const isCaseOwnedByStation = computed(() => {
-  if (selectedCaseId.value === 'ALL') return true;
+  if (selectedCaseId.value === 'ALL') return true; // Benarkan pelepasan penuh jika pilih ALL
   if (activeStation.value === 'MRCC Putrajaya') return true;
   return selectedCase.value && selectedCase.value.region === activeRegion.value;
 });
@@ -552,19 +552,14 @@ const filteredMesejChat = computed(() => {
     globalUnreadCount.value = 0;
     return senaraiMesejChat.value.filter(m => m.chat_type === 'global' && m.case_id === null);
   } else if (isLocalChatActive.value) {
-    if (!isCaseSelected.value) return []; // No messages if no case selected
-
-    // Security Access Control: Only display messages if the case belongs to the active station's region
-    if (!isCaseOwnedByStation.value) {
-      return []; // Access restricted, return empty array
+    // Jika pilih ALL, paparkan semua mesej local yang terikat di bawah wilayah stesen tersebut
+    if (selectedCaseId.value === 'ALL') {
+      const idKesWilayah = senaraiKesAktifSahaja.value.map(k => k.id)
+      return senaraiMesejChat.value.filter(m => m.chat_type === 'local' && idKesWilayah.includes(m.case_id));
     }
-
-    return senaraiMesejChat.value.filter(m =>
-      m.chat_type === 'local' &&
-      m.case_id === Number(selectedCaseId.value)
-    );
+    return senaraiMesejChat.value.filter(m => m.chat_type === 'local' && m.case_id === Number(selectedCaseId.value));
   }
-  return []; // Default empty
+  return [];
 })
 
 const isLocalChatInputDisabled = computed(() => {
@@ -1217,28 +1212,35 @@ const fetchChatMessages = async () => {
 
 // 📡 FUNGSI RADAR REALTIME (MENANGKAP MESEJ DARI STESEN LAIN)
 const langganMesejRealtimeSupabase = () => {
-  putuskanLanggananChatRealtime() // Bersihkan frekuensi lama
-  fetchChatMessages() // Ambil sejarah mesej lama
+  // Bersihkan langganan sedia ada jika ada
+  if (chatChannelSubscription) {
+    supabase.removeChannel(chatChannelSubscription)
+  }
+  
+  fetchChatMessages() 
 
-  chatChannelSubscription = supabase.channel('sar_messages_realtime')
+  // Menggunakan nama saluran unik khusus untuk mengelakkan pertembungan cache Cloudflare
+  chatChannelSubscription = supabase.channel('messages-realtime-channel')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sar_messages' }, (payload) => {
       const r = payload.new
       
-      // 🛡️ PENAPIS PENTING: Abaikan mesej pantulan dari diri sendiri
       if (r.sender === activeStation.value) return
 
-      // Masukkan terus mesej ke dalam array utama.
-      // Penapisan untuk paparan (Global vs Local) akan dikendalikan secara automatik 
-      // oleh computed property 'filteredMesejChat'.
-      senaraiMesejChat.value.push(r)
+      // Memastikan mesej dimasukkan secara reaktif ke dalam memori array tanpa duplikasi
+      const wujud = senaraiMesejChat.value.some(m => m.id === r.id)
+      if (!wujud) {
+        senaraiMesejChat.value.push(r)
+      }
 
-      // Kira 'unread count' untuk tab global jika user sedang berada di tab lain
       if (r.chat_type === 'global' && !isGlobalChatActive.value) {
         globalUnreadCount.value++
       }
 
       autoScrollChatKeBawah()
-    }).subscribe()
+    })
+    .subscribe((status) => {
+      console.log("📡 Status Langganan Realtime Terkini:", status)
+    })
 }
 
 // ⏳ FUNGSI AMBIL DATA TRACK HISTORY DARI SUPABASE
