@@ -1080,75 +1080,110 @@ const tukarKesTaktikal = () => {
 }
 
 const ekstrakSatuKoordinat = (teks) => {
-  // Regex for parsing coordinates
-  if (!teks) return null
-  const match = teks.match(/(\d{2})-(\d{2}\.\d{3})([NS])\s+(\d{3})-(\d{2}\.\d{3})([EW])/)
-  if (!match) return null
-  let lat = parseInt(match[1]) + parseFloat(match[2]) / 60; if (match[3] === 'S') lat = -lat
-  let lon = parseInt(match[4]) + parseFloat(match[5]) / 60; if (match[6] === 'W') lon = -lon
-  return [lat, lon]
-}
+  if (!teks) return null;
+  
+  // 1. Cuba potong format perpuluhan minit (Gaya PC Lama)
+  const matchPC = teks.match(/(\d{2})-([\d\.]+)([NS])\s+(\d{3})-([\d\.]+)([EW])/);
+  // 2. Cuba potong format bulat darjah-minit (Gaya Web Baharu)
+  const matchWeb = teks.match(/(\d{2})-(\d{2})([NS])\s+(\d{3})-(\d{2})([EW])/);
+
+  if (matchPC) {
+    let lat = parseInt(matchPC[1]) + parseFloat(matchPC[2]) / 60; if (matchPC[3] === 'S') lat = -lat;
+    let lon = parseInt(matchPC[4]) + parseFloat(matchPC[5]) / 60; if (matchPC[6] === 'W') lon = -lon;
+    return [lat, lon];
+  } else if (matchWeb) {
+    let lat = parseInt(matchWeb[1]) + parseInt(matchWeb[2]) / 60; if (matchWeb[3] === 'S') lat = -lat;
+    let lon = parseInt(matchWeb[4]) + parseInt(matchWeb[2]) / 60; if (matchWeb[6] === 'W') lon = -lon;
+    return [lat, lon];
+  }
+  return null;
+};
 
 const bacaFailSAROPS = (event) => {
-  // SAROPS file parsing logic
-  if (selectedCaseId.value === 'ALL' || !selectedCaseId.value) { alert("⚠️ Sila pilih kes spesifik dulu."); event.target.value = ''; return }
-  const files = event.target.files; if (!files.length) return
-  const currentActiveCaseId = Number(selectedCaseId.value)
+  if (selectedCaseId.value === 'ALL' || !selectedCaseId.value) { 
+    alert("⚠️ Sila pilih kes spesifik dulu."); 
+    event.target.value = ''; 
+    return; 
+  }
+  const files = event.target.files; if (!files.length) return;
+  const currentActiveCaseId = Number(selectedCaseId.value);
 
   Array.from(files).forEach((file) => {
-    const reader = new FileReader()
+    const reader = new FileReader();
     reader.onload = async (e) => {
-      const kandungan = e.target.result
-      const namaSru = kandungan.match(/SRU ID \(TAIL\/HULL\)\s*:\s*(.+)/)?.[1].trim() || 'UNKNOWN SRU'
-      const corakPenuh = kandungan.match(/SEARCH PATTERN NAME\s*:\s*(.+)/)?.[1].trim() || ''
-      const koordinatCenter = ekstrakSatuKoordinat(kandungan.match(/CENTER\s*:\s*([^\n\r]+)/)?.[1])
-      let kawasanNama = corakPenuh ? corakPenuh.split(':')[0].trim() : 'ZON'
-      const koordinatCSP = ekstrakSatuKoordinat(kandungan.match(/CSP\s*:\s*([^\n\r]+)/)?.[1])
-      const pt1 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT #1\s*:\s*([^\n\r]+)/)?.[1])
-      const pt2 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT #2\s*:\s*([^\n\r]+)/)?.[1])
-      const pt3 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT #3\s*:\s*([^\n\r]+)/)?.[1])
-      const pt4 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT #4\s*:\s*([^\n\r]+)/)?.[1])
+      const kandungan = e.target.result;
+      
+      // Menggunakan penapis fleksibel \s* untuk mengabaikan jarak kosong janaan versi web
+      const namaSru = kandungan.match(/SRU ID\s*\(TAIL\/HULL[^)]*\)\s*:\s*(.+)/)?.[1].trim() || 'UNKNOWN SRU';
+      const corakPenuh = kandungan.match(/SEARCH PATTERN NAME\s*:\s*(.+)/)?.[1].trim() || '';
+      const koordinatCenter = ekstrakSatuKoordinat(kandungan.match(/CENTER\s*:\s*([^\n\r]+)/)?.[1]);
+      
+      let kawasanNama = kandungan.match(/ZONE NAME\s*:\s*(.+)/)?.[1].trim() || 
+                        (corakPenuh.includes(':') ? corakPenuh.split(':')[1].split('-')[0].trim() : corakPenuh.split('-')[0].replace('A-1:', '').trim()) || 
+                        'ZON';
+      
+      const koordinatCSP = ekstrakSatuKoordinat(kandungan.match(/CSP\s*:\s*([^\n\r]+)/)?.[1]);
+      const pt1 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT\s*#1\s*:\s*([^\n\r]+)/)?.[1]);
+      const pt2 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT\s*#2\s*:\s*([^\n\r]+)/)?.[1]);
+      const pt3 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT\s*#3\s*:\s*([^\n\r]+)/)?.[1]);
+      const pt4 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT\s*#4\s*:\s*([^\n\r]+)/)?.[1]);
 
-      const garisanLaluan = []
-      let kawasanSortie = false; const barisTeks = kandungan.split('\n')
-      let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180
+      const garisanLaluan = [];
+      let kawasanSortie = false; 
+      const barisTeks = kandungan.split('\n');
+      
+      let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
       if (pt1 && pt2 && pt3 && pt4) {
         [pt1, pt2, pt3, pt4].forEach(pt => {
-          if (pt[0] < minLat) minLat = pt[0]; if (pt[0] > maxLat) maxLat = pt[0]
-          if (pt[1] < minLon) minLon = pt[1]; if (pt[1] > maxLon) maxLon = pt[1]
-        })
-        // Besarkan sedikit padding pencarian
-        minLat -= 0.5; maxLat += 0.5; minLon -= 0.5; maxLon += 0.5
+          if (pt[0] < minLat) minLat = pt[0]; if (pt[0] > maxLat) maxLat = pt[0];
+          if (pt[1] < minLon) minLon = pt[1]; if (pt[1] > maxLon) maxLon = pt[1];
+        });
+        minLat -= 0.1; maxLat += 0.1; minLon -= 0.1; maxLon += 0.1;
       }
 
       for (let baris of barisTeks) {
-        // Regex yang lebih fleksibel untuk mengesan garisan pemisah jadual waypoints
-        if (baris.match(/---+\s+---+\s+---+/)) { kawasanSortie = true; continue }
+        // Menyokong sempadan jadual sortie jenis PC lama mahupun janaan Web baharu
+        if (baris.includes('---  --------------  ----------------------') || baris.includes('---  --------------  --------------')) { 
+          kawasanSortie = true; 
+          continue; 
+        }
         if (kawasanSortie) {
-          if (baris.trim() === '' || baris.includes('}')) continue
-          const matchKoordinat = baris.match(/\d{1,2}-\d{1,2}\.\d+[NS]\s+\d{1,3}-\d{1,2}\.\d+[EW]/)
+          if (baris.trim() === '' || baris.includes('}')) continue;
+          
+          const matchKoordinat = baris.match(/\d{2}-[\d\.]+[NS]\s+\d{3}-[\d\.]+[EW]/) || 
+                                 baris.match(/\d{2}-\d{2}[NS]\s+\d{3}-\d{2}[EW]/);
+                                 
           if (matchKoordinat) {
-            const titikDecimal = ekstrakSatuKoordinat(matchKoordinat[0])
+            const titikDecimal = ekstrakSatuKoordinat(matchKoordinat[0]);
             if (titikDecimal) {
-              garisanLaluan.push(titikDecimal)
+              if (pt1 && (titikDecimal[0] < minLat || titikDecimal[0] > maxLat || titikDecimal[1] < minLon || titikDecimal[1] > maxLon)) continue;
+              garisanLaluan.push(titikDecimal);
             }
           }
         }
       }
 
       const { error } = await supabase.from('sar_plans').insert([{
-        case_id: currentActiveCaseId, sru_name: namaSru, pattern_name: corakPenuh.split('-')[0], zone_name: kawasanNama,
+        case_id: currentActiveCaseId, 
+        sru_name: namaSru, 
+        pattern_name: corakPenuh.split('-')[0] || 'PARALLEL', 
+        zone_name: kawasanNama,
         center_coord: koordinatCenter,
-        csp_coord: koordinatCSP, corner_points: [pt1, pt2, pt3, pt4], sortie_waypoints: garisanLaluan
-      }])
+        csp_coord: koordinatCSP, 
+        corner_points: [pt1, pt2, pt3, pt4], 
+        sortie_waypoints: garisanLaluan
+      }]);
+      
       if (error) {
-        console.error("Gagal simpan plan:", error.message)
-        alert("Ralat Simpan Plan: " + error.message)
-      } else { await recallPlanDariSupabase() }
-    }
-    reader.readAsText(file)
-  })
-}
+        console.error("Gagal simpan plan:", error.message);
+        alert("Ralat Simpan Plan: " + error.message);
+      } else { 
+        await recallPlanDariSupabase(); 
+      }
+    };
+    reader.readAsText(file);
+  });
+};
 
 const bukaPopUpPadam = (sru) => { sruTargetToPadam.value = sru; showDeleteModal.value = true }
 const sahkanPadamSRU = async () => {
