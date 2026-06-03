@@ -134,7 +134,7 @@
               Klik untuk Muat Naik Taktikal SAROPS<br>
               <span style="color:#f59e0b; font-size:10px;" v-if="selectedCaseId === 'ALL'">⚠️ Pilih kes spesifik dulu untuk ikat file</span>
               <span v-else style="color:#34d399; font-weight: bold;">Auto-Save diaktifkan 🟢</span>
-              <input type="file" multiple accept=".txt" @change="bacaFailSAROPS" style="display: none;" />
+              <input type="file" multiple accept=".txt,.gpx,.kml" @change="bacaFailSAROPS" style="display: none;" />
             </label>
           </div>
 
@@ -1118,15 +1118,37 @@ const bacaFailSAROPS = (event) => {
       let garisanLaluan = [];
 
       // ==========================================
-      // ENJIN 1: PEMBACA FORMAT KML (SUPER TEPAT)
+      // ENJIN 1: GPX (GPS Exchange Format)
       // ==========================================
-      if (extension === 'kml') {
+      if (extension === 'gpx') {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(kandungan, "text/xml");
+        const route = xmlDoc.getElementsByTagName('rte')[0];
+        
+        if (route) {
+          const routeName = route.getElementsByTagName('name')[0]?.textContent || '';
+          corakPenuh = routeName;
+          namaSru = routeName.includes(':') ? routeName.split(':')[1].split('-')[0].trim() : 'UNKNOWN SRU';
+          kawasanNama = routeName.split('-')[0].replace('A-1:', '').trim() || 'ZON';
+        }
 
-        // A. Ekstrak Metadata dari tag <description>
+        const rtepts = xmlDoc.getElementsByTagName('rtept');
+        for (let i = 0; i < rtepts.length; i++) {
+          const lat = parseFloat(rtepts[i].getAttribute('lat'));
+          const lon = parseFloat(rtepts[i].getAttribute('lon'));
+          if (i === 0) koordinatCSP = [lat, lon];
+          garisanLaluan.push([lat, lon]);
+        }
+      } 
+      // ==========================================
+      // ENJIN 2: KML (Keyhole Markup Language)
+      // ==========================================
+      else if (extension === 'kml') {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(kandungan, "text/xml");
         const descriptions = xmlDoc.getElementsByTagName('description');
         let teksLaporan = '';
+        
         for (let i = 0; i < descriptions.length; i++) {
           if (descriptions[i].textContent.includes('SEARCH PATTERN NAME')) {
             teksLaporan = descriptions[i].textContent;
@@ -1139,7 +1161,6 @@ const bacaFailSAROPS = (event) => {
           corakPenuh = teksLaporan.match(/SEARCH PATTERN NAME\s*:\s*(.+)/)?.[1].trim() || '';
           kawasanNama = teksLaporan.match(/ZONE NAME\s*:\s*(.+)/)?.[1].trim() || 
                         (corakPenuh.includes(':') ? corakPenuh.split(':')[1].split('-')[0].trim() : corakPenuh.split('-')[0].replace('A-1:', '').trim()) || 'ZON';
-          
           koordinatCenter = ekstrakSatuKoordinat(teksLaporan.match(/CENTER\s*:\s*([^\n\r]+)/)?.[1]);
           koordinatCSP = ekstrakSatuKoordinat(teksLaporan.match(/CSP\s*:\s*([^\n\r]+)/)?.[1]);
           pt1 = ekstrakSatuKoordinat(teksLaporan.match(/CORNER PT\s*#1\s*:\s*([^\n\r]+)/)?.[1]);
@@ -1148,21 +1169,18 @@ const bacaFailSAROPS = (event) => {
           pt4 = ekstrakSatuKoordinat(teksLaporan.match(/CORNER PT\s*#4\s*:\s*([^\n\r]+)/)?.[1]);
         }
 
-        // B. Ekstrak Waypoint Laluan Tepat dari <LineString>
         const lineStrings = xmlDoc.getElementsByTagName('LineString');
         if (lineStrings.length > 0) {
           const coordsText = lineStrings[0].getElementsByTagName('coordinates')[0].textContent.trim();
           const points = coordsText.split(/\s+/);
           points.forEach(pt => {
             const [lon, lat] = pt.split(',');
-            if (lat && lon) {
-              garisanLaluan.push([parseFloat(lat), parseFloat(lon)]);
-            }
+            if (lat && lon) garisanLaluan.push([parseFloat(lat), parseFloat(lon)]);
           });
         }
       } 
       // ==========================================
-      // ENJIN 2: PEMBACA FORMAT TXT (HIBRID LAMA)
+      // ENJIN 3: TXT (Legacy SAROPS)
       // ==========================================
       else if (extension === 'txt') {
         namaSru = kandungan.match(/SRU ID\s*\(TAIL\/HULL[^)]*\)\s*:\s*(.+)/)?.[1].trim() || 'UNKNOWN SRU';
@@ -1170,7 +1188,7 @@ const bacaFailSAROPS = (event) => {
         kawasanNama = kandungan.match(/ZONE NAME\s*:\s*(.+)/)?.[1].trim() || 
                       (corakPenuh.includes(':') ? corakPenuh.split(':')[1].split('-')[0].trim() : corakPenuh.split('-')[0].replace('A-1:', '').trim()) || 'ZON';
         koordinatCenter = ekstrakSatuKoordinat(kandungan.match(/CENTER\s*:\s*([^\n\r]+)/)?.[1]);
-        koordinatCSP = ekstrakSatuKoordinat(kandungan.match(/CSP\s*:\s*([^\n\r]+)/)?.[1]);
+        koordinatCSP = ekstrakSatuKoordinat(kandungan.match(/CSP\s*([^\n\r]+)/)?.[1]);
         pt1 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT\s*#1\s*:\s*([^\n\r]+)/)?.[1]);
         pt2 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT\s*#2\s*:\s*([^\n\r]+)/)?.[1]);
         pt3 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT\s*#3\s*:\s*([^\n\r]+)/)?.[1]);
@@ -1203,7 +1221,7 @@ const bacaFailSAROPS = (event) => {
           }
         }
       } else {
-        alert("Sila muat naik format fail .txt atau .kml sahaja.");
+        alert("Sila muat naik format fail .txt, .gpx, atau .kml sahaja.");
         return;
       }
 
