@@ -1083,9 +1083,9 @@ const ekstrakSatuKoordinat = (teks) => {
   if (!teks) return null;
   
   // 1. Cuba potong format perpuluhan minit (Gaya PC Lama)
-  const matchPC = teks.match(/(\d{2})-([\d\.]+)([NS])\s+(\d{3})-([\d\.]+)([EW])/);
+  const matchPC = teks.match(/(\d{1,2})-([\d\.]+)([NS])\s+(\d{1,3})-([\d\.]+)([EW])/);
   // 2. Cuba potong format bulat darjah-minit (Gaya Web Baharu)
-  const matchWeb = teks.match(/(\d{2})-(\d{2})([NS])\s+(\d{3})-(\d{2})([EW])/);
+  const matchWeb = teks.match(/(\d{1,2})-(\d{2})([NS])\s+(\d{1,3})-(\d{2})([EW])/);
 
   if (matchPC) {
     let lat = parseInt(matchPC[1]) + parseFloat(matchPC[2]) / 60; if (matchPC[3] === 'S') lat = -lat;
@@ -1132,31 +1132,21 @@ const bacaFailSAROPS = (event) => {
       let kawasanSortie = false; 
       const barisTeks = kandungan.split('\n');
       
-      let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
-      if (pt1 && pt2 && pt3 && pt4) {
-        [pt1, pt2, pt3, pt4].forEach(pt => {
-          if (pt[0] < minLat) minLat = pt[0]; if (pt[0] > maxLat) maxLat = pt[0];
-          if (pt[1] < minLon) minLon = pt[1]; if (pt[1] > maxLon) maxLon = pt[1];
-        });
-        minLat -= 0.1; maxLat += 0.1; minLon -= 0.1; maxLon += 0.1;
-      }
-
       for (let baris of barisTeks) {
         // Menyokong sempadan jadual sortie jenis PC lama mahupun janaan Web baharu
-        if (baris.includes('---  --------------  ----------------------') || baris.includes('---  --------------  --------------')) { 
+        if (baris.match(/---+\s+---+\s+---+/)) { 
           kawasanSortie = true; 
           continue; 
         }
         if (kawasanSortie) {
           if (baris.trim() === '' || baris.includes('}')) continue;
           
-          const matchKoordinat = baris.match(/\d{2}-[\d\.]+[NS]\s+\d{3}-[\d\.]+[EW]/) || 
-                                 baris.match(/\d{2}-\d{2}[NS]\s+\d{3}-\d{2}[EW]/);
+          const matchKoordinat = baris.match(/\d{1,2}-[\d\.]+[NS]\s+\d{1,3}-[\d\.]+[EW]/) || 
+                                 baris.match(/\d{1,2}-\d{2}[NS]\s+\d{1,3}-\d{2}[EW]/);
                                  
           if (matchKoordinat) {
             const titikDecimal = ekstrakSatuKoordinat(matchKoordinat[0]);
             if (titikDecimal) {
-              if (pt1 && (titikDecimal[0] < minLat || titikDecimal[0] > maxLat || titikDecimal[1] < minLon || titikDecimal[1] > maxLon)) continue;
               garisanLaluan.push(titikDecimal);
             }
           }
