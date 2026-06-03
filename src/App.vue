@@ -1045,6 +1045,7 @@ const tukarKesTaktikal = () => {
   supabase.removeAllChannels()
   langganTelemetriMMEA()
   langganMesejRealtimeSupabase()
+  langganPerubahanPelanSupabase() // <-- Tambah panggilan ini
 
   // Clear existing map graphics
   senaraiMasterSRU.value.forEach(sru => {
@@ -1357,6 +1358,15 @@ const langganMesejRealtimeSupabase = () => {
     })
 }
 
+// 📡 FUNGSI RADAR REALTIME (MENANGKAP PERUBAHAN PELAN SAR DARI STESEN LAIN)
+const langganPerubahanPelanSupabase = () => {
+  supabase.channel('sar-plans-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'sar_plans' }, async (payload) => {
+      console.log("🔄 Perubahan Aset (SRU) dikesan dari pelayan lain!");
+      await recallPlanDariSupabase();
+    })
+    .subscribe();
+};
 // ⏳ FUNGSI AMBIL DATA TRACK HISTORY DARI SUPABASE
 const loadTrackHistory = async () => {
   if (!mapInstance || !trackHistoryLayer) return
