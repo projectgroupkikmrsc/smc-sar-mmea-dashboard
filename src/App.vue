@@ -438,8 +438,13 @@ const initializeDashboard = async () => {
   await tarikDataKes()
   initMap()
   await recallPlanDariSupabase()
+
+  // Pastikan 3 baris ini ada di sini:
   langganTelemetriMMEA()
   langganMesejRealtimeSupabase()
+  if (typeof langganPerubahanPelanSupabase === 'function') {
+    langganPerubahanPelanSupabase()
+  }
 }
 
 onMounted(async () => {
@@ -1041,11 +1046,6 @@ const padamKesDariSupabase = async () => {
 
 const tukarKesTaktikal = () => {
   if (!mapInstance) return
-
-  supabase.removeAllChannels()
-  langganTelemetriMMEA()
-  langganMesejRealtimeSupabase()
-  langganPerubahanPelanSupabase() // <-- Tambah panggilan ini
 
   // Clear existing map graphics
   senaraiMasterSRU.value.forEach(sru => {
