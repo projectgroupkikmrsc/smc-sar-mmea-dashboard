@@ -915,18 +915,26 @@ const recallPlanDariSupabase = async () => {
       const warnaTema = warnaSearchArea[senaraiMasterSRU.value.length % warnaSearchArea.length]
 
       if (mapInstance) {
-        if (row.corner_points && row.corner_points.length >= 4) {
-          const pt1 = row.corner_points[0], pt2 = row.corner_points[1], pt3 = row.corner_points[2], pt4 = row.corner_points[3]
-          const kotakPoly = L.polyline([pt1, pt2, pt3, pt4, pt1], { color: warnaTema, weight: 2, opacity: 0.9 }).addTo(mapInstance)
+        // Pastikan corner_points wujud dan lengkap
+        if (row.corner_points && Array.isArray(row.corner_points) && row.corner_points.length >= 4) {
+          const pts = row.corner_points.filter(p => p !== null)
+          if (pts.length >= 4) {
+            const kotakPoly = L.polyline([...pts, pts[0]], { color: warnaTema, weight: 2, opacity: 0.9 })
+            elemenGrafikPeta.push(kotakPoly)
+          }
+        }
 
-          elemenGrafikPeta.push(kotakPoly)
+        // Pastikan sortie_waypoints wujud
+        if (row.sortie_waypoints && Array.isArray(row.sortie_waypoints) && row.sortie_waypoints.length > 0) {
+          const waypoints = row.sortie_waypoints.filter(p => p !== null)
+          if (waypoints.length > 0) {
+            const laluanPoly = L.polyline(waypoints, { color: warnaTema, weight: 2, dashArray: '5, 5', opacity: 0.85 })
+            elemenGrafikPeta.push(laluanPoly)
+          }
         }
-        if (row.sortie_waypoints && row.sortie_waypoints.length > 0) {
-          const laluanPoly = L.polyline(row.sortie_waypoints, { color: warnaTema, weight: 2, dashArray: '5, 5', opacity: 0.85 }).addTo(mapInstance)
-          elemenGrafikPeta.push(laluanPoly)
-        }
-        if (row.csp_coord) {
-          const dotCSP = L.circleMarker(row.csp_coord, { color: '#ef4444', fillColor: '#ef4444', fillOpacity: 1, radius: 4 }).addTo(mapInstance)
+
+        if (row.csp_coord && Array.isArray(row.csp_coord)) {
+          const dotCSP = L.circleMarker(row.csp_coord, { color: '#ef4444', fillColor: '#ef4444', fillOpacity: 1, radius: 4 })
           dotCSP.bindTooltip(`CSP ${row.zone_name} (${row.sru_name})`)
           elemenGrafikPeta.push(dotCSP)
         }
@@ -1109,18 +1117,19 @@ const bacaFailSAROPS = (event) => {
           if (pt[0] < minLat) minLat = pt[0]; if (pt[0] > maxLat) maxLat = pt[0]
           if (pt[1] < minLon) minLon = pt[1]; if (pt[1] > maxLon) maxLon = pt[1]
         })
-        minLat -= 0.1; maxLat += 0.1; minLon -= 0.1; maxLon += 0.1
+        // Besarkan sedikit padding pencarian
+        minLat -= 0.5; maxLat += 0.5; minLon -= 0.5; maxLon += 0.5
       }
 
       for (let baris of barisTeks) {
-        if (baris.includes('---  --------------  ----------------------')) { kawasanSortie = true; continue }
+        // Regex yang lebih fleksibel untuk mengesan garisan pemisah jadual waypoints
+        if (baris.match(/---+\s+---+\s+---+/)) { kawasanSortie = true; continue }
         if (kawasanSortie) {
           if (baris.trim() === '' || baris.includes('}')) continue
-          const matchKoordinat = baris.match(/\d{2}-\d{2}\.\d{3}[NS]\s+\d{3}-\d{2}\.\d{3}[EW]/)
+          const matchKoordinat = baris.match(/\d{1,2}-\d{1,2}\.\d+[NS]\s+\d{1,3}-\d{1,2}\.\d+[EW]/)
           if (matchKoordinat) {
             const titikDecimal = ekstrakSatuKoordinat(matchKoordinat[0])
             if (titikDecimal) {
-              if (pt1 && (titikDecimal[0] < minLat || titikDecimal[0] > maxLat || titikDecimal[1] < minLon || titikDecimal[1] > maxLon)) continue
               garisanLaluan.push(titikDecimal)
             }
           }
