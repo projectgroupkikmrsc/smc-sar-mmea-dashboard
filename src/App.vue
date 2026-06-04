@@ -475,9 +475,13 @@ const initializeDashboard = async () => {
   await nextTick()
   await tarikDataKes()
   initMap()
+
   if (isAdmin.value && mapInstance) {
-    mapInstance.setView([4.5, 109.0], 5);
+    mapInstance.setView([4.5, 109.0], 5)
+  } else if ((activeStation.value === 'MRSC Kota Kinabalu' || activeStation.value === 'MRSC Kuching') && mapInstance) {
+    mapInstance.setView([4.0, 114.0], 7)
   }
+
   await recallPlanDariSupabase()
 
   // Pastikan 3 baris ini ada di sini:
@@ -1205,8 +1209,13 @@ const tukarKesTaktikal = () => {
     mapInstance.fitBounds(combinedBounds, { padding: [50, 50] })
   } else { 
     // Default view if no graphics or bounds
-    if (activeStation.value === 'MRCC Putrajaya') mapInstance.setView([4.2, 109.5], 5)
-    else mapInstance.setView([3.85, 103.5], 7) 
+    if (activeStation.value === 'MRCC Putrajaya' || isAdmin.value) {
+      mapInstance.setView([4.5, 109.0], 5)
+    } else if (activeStation.value === 'MRSC Kota Kinabalu' || activeStation.value === 'MRSC Kuching') {
+      mapInstance.setView([4.0, 114.0], 7)
+    } else {
+      mapInstance.setView([3.85, 103.5], 7)
+    }
   }
 
   // Refresh track history if enabled
