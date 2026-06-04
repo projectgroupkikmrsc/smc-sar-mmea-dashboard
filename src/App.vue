@@ -598,26 +598,50 @@ const initMap = () => {
   }).addTo(mapInstance)
 
   // ============================================================================
-  // 1. LAYER MSRR (Sempadan Carian & Menyelamat)
+  // 1. LAYER MSRR (Sempadan Carian & Menyelamat) - Menggunakan Polyline
   // ============================================================================
 
   // MSRR Selat Melaka & Laut China Selatan (Semenanjung)
-  const msrrBarat = L.polygon([
-    [6.5000, 99.0000], [7.2500, 98.0000], [10.0000, 96.5000], [10.0000, 94.4167],
-    [6.0000, 94.4167], [6.0000, 97.5000], [1.6500, 102.1667], [1.2833, 103.6000],
-    [1.2833, 103.6333], [1.2833, 104.0833], [1.2167, 104.2167], [1.3833, 104.5000],
-    [1.9000, 105.0833], [4.0000, 105.0833], [6.0000, 106.0000], [7.8333, 103.0500]
-  ], { color: 'blue', weight: 2, fillOpacity: 0.1, dashArray: '5, 5' }).bindPopup("MSRR: Selat Melaka / Semenanjung");
+  const msrrBarat = L.polyline([
+    [6.4333, 100.1333], // Titik 1: Sempadan Pantai Barat (Perlis/Thailand)
+    [6.5000, 99.0000],  // Titik 2
+    [7.2500, 98.0000],  // Titik 3
+    [10.0000, 96.5000], // Titik 4
+    [10.0000, 94.4167], // Titik 5
+    [6.0000, 94.4167],  // Titik 6
+    [6.0000, 97.5000],  // Titik 7
+    [1.6500, 102.1667], // Titik 8
+    [1.2833, 103.6000], // Titik 9
+    [1.2833, 103.6333], // Titik 10
+    [1.2833, 104.0833], // Titik 11
+    [1.2167, 104.2167], // Titik 12
+    [1.3833, 104.5000], // Titik 13
+    [1.9000, 105.0833], // Titik 14
+    [4.0000, 105.0833], // Titik 15
+    [6.0000, 106.0000], // Titik 16
+    [7.8333, 103.0500], // Titik 17
+    [6.2333, 102.1167]  // Titik 18: Sempadan Pantai Timur (Kelantan/Thailand)
+  ], { color: 'blue', weight: 2, dashArray: '5, 5' }).bindPopup("MSRR: Selat Melaka / Semenanjung");
 
-  // MSRR Laut China Selatan & Laut Sulu (Borneo) - Ditambah Titik Pantai (Tg Datu & Sebatik)
-  const msrrTimur = L.polygon([
+  // MSRR Laut China Selatan & Laut Sulu (Borneo)
+  const msrrTimur = L.polyline([
     [2.0833, 109.6467], // Titik 19: Pantai Tg. Datu (Sempadan Sarawak)
-    [6.2833, 109.6333], [10.0000, 111.5000], [10.0000, 116.0000], [7.6833, 116.0000],
-    [7.6833, 118.0000], [6.3333, 118.0000], [6.0000, 118.3333], [6.0000, 118.9167],
-    [5.2667, 119.5833], [4.7000, 119.0000], [4.4000, 119.0000], [4.4000, 120.0000],
-    [4.0000, 120.0000], [4.0000, 118.0000], 
+    [6.2833, 109.6333], // Titik 20
+    [10.0000, 111.5000], // Titik 21
+    [10.0000, 116.0000], // Titik 22
+    [7.6833, 116.0000], // Titik 23
+    [7.6833, 118.0000], // Titik 24
+    [6.3333, 118.0000], // Titik 25
+    [6.0000, 118.3333], // Titik 26
+    [6.0000, 118.9167], // Titik 27
+    [5.2667, 119.5833], // Titik 28
+    [4.7000, 119.0000], // Titik 29
+    [4.4000, 119.0000], // Titik 30
+    [4.4000, 120.0000], // Titik 31
+    [4.0000, 120.0000], // Titik 32
+    [4.0000, 118.0000], // Titik 33
     [4.1667, 117.8995]  // Titik 34: Pantai Sempadan Sabah/Kalimantan
-  ], { color: 'red', weight: 2, fillOpacity: 0.1, dashArray: '5, 5' }).bindPopup("MSRR: Borneo (Sabah & Sarawak)");
+  ], { color: 'red', weight: 2, dashArray: '5, 5' }).bindPopup("MSRR: Borneo (Sabah & Sarawak)");
 
   const layerMSRR = L.layerGroup([msrrBarat, msrrTimur]);
 
@@ -636,7 +660,26 @@ const initMap = () => {
     [1.2700, 104.1183], [1.2608, 104.1578], [1.2275, 104.2112], [1.2700, 104.2692],
     [1.2750, 104.3300], [1.2592, 104.4742], [1.2825, 104.4888], [1.3983, 104.4917],
     [1.6333, 104.8833], [1.9067, 105.0867], [2.3750, 105.0200], [2.9200, 104.8583],
-    [3.8350, 104.7750], [4.0500, 104.8650], [5.0783, 10
+    [3.8350, 104.7750], [4.0500, 104.8650], [5.0783, 105.4800], [5.6767, 105.7850],
+    [6.0967, 105.8200], [6.8042, 104.5000], [7.8167, 103.0417], [7.1708, 102.4833],
+    [6.8333, 102.3533], [6.4633, 102.1600], [6.4583, 102.1667]
+  ], { color: 'green', weight: 3, opacity: 0.8 });
+
+  // Titik 48 - 84 (Borneo: Sabah & Sarawak)
+  const pelantarBorneo = L.polyline([
+    [2.0833, 109.6467], [3.0000, 109.9083], [4.6667, 110.0333], [5.5200, 109.9833],
+    [6.3033, 109.6433], [7.1292, 111.5667], [8.3958, 112.5125], [8.7403, 113.2708],
+    [8.5653, 113.6500], [8.4070, 113.7958], [8.4072, 113.8737], [8.3958, 114.3305],
+    [8.5042, 114.4862], [8.4695, 114.8353], [8.9167, 115.1763], [8.8180, 115.6458],
+    [8.3320, 115.9013], [8.0250, 116.0583], [7.6667, 116.0000], [7.6667, 117.0000],
+    [7.4125, 117.4250], [6.8667, 117.9667], [6.2833, 117.9667], [6.0000, 118.3333],
+    [6.0000, 118.8333], [5.2667, 119.5833], [4.7000, 119.0000], [4.3833, 119.0000],
+    [4.3833, 120.0000], [3.0458, 120.2625], [3.0250, 119.8833], [3.1000, 118.9583],
+    [3.1445, 118.7695], [3.6500, 118.3667], [4.0608, 118.0183], [4.1333, 117.9492],
+    [4.1667, 117.8995]
+  ], { color: 'green', weight: 3, opacity: 0.8 });
+
+  const layerPelantarBenua = L.layerGroup([pelantarSemenanjung, pelantarBorneo]);
 
   // 1. TACTICAL SEARCH & COORDINATE GO-TO BAR (Diletakkan dahulu supaya berada di kiri dalam susunan flex)
   let searchMarker = null;
@@ -694,17 +737,16 @@ const initMap = () => {
   new SearchGoToControl().addTo(mapInstance);
 
   // ============================================================================
-  // 2. GABUNGKAN KE DALAM LAYER CONTROL (Akan muncul di sebelah kanan Search)
+  // 3. GABUNGKAN KE DALAM LAYER CONTROL
   // ============================================================================
-  if (!window.mapLayerControl) {
-    window.mapLayerControl = L.control.layers(null, {
-      "Sempadan MSRR Malaysia": layerMSRR,
-      "Sempadan Pelantar Benua (1979)": sempadanMalaysia
-    }, { position: 'topright' }).addTo(mapInstance);
-  } else {
-    window.mapLayerControl.addOverlay(layerMSRR, "Sempadan MSRR Malaysia");
-    window.mapLayerControl.addOverlay(sempadanMalaysia, "Sempadan Pelantar Benua (1979)");
+  if (window.mapLayerControl) {
+    mapInstance.removeControl(window.mapLayerControl);
   }
+
+  window.mapLayerControl = L.control.layers(null, {
+    "Sempadan MSRR Malaysia": layerMSRR,
+    "Sempadan Pelantar Benua (1979)": layerPelantarBenua
+  }, { position: 'topright' }).addTo(mapInstance);
 
   // 3. LIVE COORDINATE TRACKER (PENJEJAK LATLONG TETIKUS - BOTTOM LEFT)
   const MousePositionControl = L.Control.extend({
