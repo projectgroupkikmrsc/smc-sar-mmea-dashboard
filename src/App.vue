@@ -1,5 +1,14 @@
 <template>
   <div style="font-family: 'Segoe UI', Roboto, sans-serif; background-color: #0b0f19; min-height: 100dvh; min-width: 1280px; width: 100%; display: flex; flex-direction: column; color: #f1f5f9; overflow: auto; box-sizing: border-box; margin: 0; padding: 0;">
+
+    <!-- 🚨 EMERGENCY BROADCAST POP-UP -->
+    <div v-if="paparAmaran" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.9); z-index: 9999; display: flex; justify-content: center; align-items: center;">
+      <div style="background-color: #ff0000; padding: 40px; border-radius: 10px; border: 5px solid white; text-align: center; max-width: 600px; box-shadow: 0 0 50px red;">
+        <h1 style="color: white; font-size: 32px; font-weight: bold; margin-bottom: 20px;">🚨 ARAHAN KECEMASAN MRCC 🚨</h1>
+        <p style="color: white; font-size: 24px; margin-bottom: 30px;">{{ amaranAdmin }}</p>
+        <button @click="paparAmaran = false" style="background-color: white; color: red; font-size: 20px; font-weight: bold; padding: 15px 30px; border: none; border-radius: 5px; cursor: pointer;">SAYA MAKLUM & SAHKAN</button>
+      </div>
+    </div>
     
     <div v-if="!isLoggedIn" :style="{ flex: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundImage: `url(${bgLogin})`, backgroundSize: 'cover', backgroundPosition: 'center', position: 'relative' }">
       <div style="position: absolute; width: 100%; height: 100%; opacity: 0.03; background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px); background-size: 20px 20px;"></div>
@@ -96,9 +105,9 @@
 
             <!-- Data Management Tools -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-              <button @click="padamSemuaMesej" style="background: #450a0a; color: #fca5a5; border: 1px solid #7f1d1d; padding: 6px; font-size: 10px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s;">🧹 Clear Chats</button>
-              <button @click="padamSemuaPelan" style="background: #450a0a; color: #fca5a5; border: 1px solid #7f1d1d; padding: 6px; font-size: 10px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s;">🗺️ Clear Plans</button>
-              <button @click="padamSejarahGPS" style="background: #450a0a; color: #fca5a5; border: 1px solid #7f1d1d; padding: 6px; font-size: 10px; border-radius: 4px; font-weight: bold; cursor: pointer; grid-column: span 2; transition: 0.2s;">🛰️ Wipe GPS Telemetry History</button>
+              <button @click="padamSemuaMesej" style="background: #ef4444; color: white; border: 1px solid #7f1d1d; padding: 6px; font-size: 10px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s;">🧹 Padam Semua Mesej</button>
+              <button @click="padamSemuaPelan" style="background: #ef4444; color: white; border: 1px solid #7f1d1d; padding: 6px; font-size: 10px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s;">🗺️ Padam Semua Pelan</button>
+              <button @click="padamSejarahGPS" style="background: #ef4444; color: white; border: 1px solid #7f1d1d; padding: 6px; font-size: 10px; border-radius: 4px; font-weight: bold; cursor: pointer; grid-column: span 2; transition: 0.2s;">🛰️ Cuci Sejarah GPS</button>
             </div>
           </div>
           
@@ -430,6 +439,11 @@ const activeStation = ref('')
 const activeRegion = ref('')
 const isAdmin = computed(() => activeStation.value === 'Admin System');
 const loginForm = ref({ stationId: '', password: '' })
+
+// God Mode State
+const amaranAdmin = ref('')
+const paparAmaran = ref(false)
+const mesejBroadcast = ref('')
 
 // TELEMETRY MANAGEMENT (REAL-TIME GPS)
 const telemetriRealtime = ref([])
@@ -1478,10 +1492,15 @@ const langganMesejRealtimeSupabase = () => {
       (payload) => {
         if (payload.eventType === 'INSERT') {
           const r = payload.new
-          if (r.sender === activeStation.value) return
-          if (!senaraiMesejChat.value.some(m => m.id === r.id)) senaraiMesejChat.value.push(r)
-          if (r.chat_type === 'global' && !isGlobalChatActive.value) globalUnreadCount.value++
-          autoScrollChatKeBawah()
+          if (r.sender === 'PENGUMUMAN ADMIN') {
+            amaranAdmin.value = r.message
+            paparAmaran.value = true
+          } else {
+            if (r.sender === activeStation.value) return
+            if (!senaraiMesejChat.value.some(m => m.id === r.id)) senaraiMesejChat.value.push(r)
+            if (r.chat_type === 'global' && !isGlobalChatActive.value) globalUnreadCount.value++
+            autoScrollChatKeBawah()
+          }
         } else if (payload.eventType === 'DELETE') {
           senaraiMesejChat.value = senaraiMesejChat.value.filter(m => m.id !== payload.old.id)
         }
@@ -1614,18 +1633,19 @@ const padamSejarahGPS = async () => {
 };
 
 // E: Hantar Pengumuman Am (Broadcast)
-const mesejBroadcast = ref('');
-const hantarBroadcast = () => {
+const hantarBroadcast = async () => {
   if (!mesejBroadcast.value) return;
-  // Meminjam jadual sar_messages tetapi menggunakan flag/nama khas untuk Broadcast
-  supabase.from('sar_messages').insert([{ 
+  
+  const { error } = await supabase.from('sar_messages').insert([{ 
     sender: 'PENGUMUMAN ADMIN', 
     message: mesejBroadcast.value,
     chat_type: 'global'
-  }]).then(() => {
-    alert("Pengumuman telah dihantar ke semua stesen!");
+  }]);
+
+  if (!error) {
+    alert("Pengumuman dihantar!");
     mesejBroadcast.value = '';
-  });
+  }
 };
 </script>
 
