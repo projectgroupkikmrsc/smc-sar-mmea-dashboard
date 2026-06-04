@@ -637,45 +637,7 @@ const initMap = () => {
     [6.8333, 102.3533], [6.4633, 102.1600], [6.4583, 102.1667]
   ], { color: 'green', weight: 3, opacity: 0.8 }).bindPopup("Sempadan Pelantar Benua Malaysia (1979)");
 
-  // ============================================================================
-  // 3. GABUNGKAN KE DALAM LAYER CONTROL
-  // ============================================================================
-  if (!window.mapLayerControl) {
-    window.mapLayerControl = L.control.layers(null, {
-      "Sempadan MSRR Malaysia": layerMSRR,
-      "Sempadan Pelantar Benua (1979)": sempadanMalaysia
-    }, { position: 'topright' }).addTo(mapInstance);
-  } else {
-    // Jika Layer Control sudah wujud, tambah sahaja ke dalam senarai
-    window.mapLayerControl.addOverlay(layerMSRR, "Sempadan MSRR Malaysia");
-    window.mapLayerControl.addOverlay(sempadanMalaysia, "Sempadan Pelantar Benua (1979)");
-  }
-
-  // 1. LIVE COORDINATE TRACKER (PENJEJAK LATLONG TETIKUS - BOTTOM LEFT)
-  const MousePositionControl = L.Control.extend({
-    options: { position: 'bottomleft' },
-    onAdd: function () {
-      this._container = L.DomUtil.create('div', 'leaflet-control-mouseposition');
-      this._container.style.backgroundColor = '#0f172a';
-      this._container.style.border = '1px solid #38bdf8';
-      this._container.style.color = '#38bdf8';
-      this._container.style.fontFamily = 'monospace';
-      this._container.style.fontSize = '11px';
-      this._container.style.fontWeight = 'bold';
-      this._container.style.padding = '4px 8px';
-      this._container.style.borderRadius = '4px';
-      this._container.innerHTML = '🌐 LAT: 0.0000 | LON: 0.0000';
-      return this._container;
-    },
-    updateCoords: function (latlng) {
-      this._container.innerHTML = `🌐 LAT: ${latlng.lat.toFixed(4)} | LON: ${latlng.lng.toFixed(4)}`;
-    }
-  });
-  const mousePos = new MousePositionControl();
-  mousePos.addTo(mapInstance);
-  mapInstance.on('mousemove', (e) => mousePos.updateCoords(e.latlng));
-
-  // 2. TACTICAL SEARCH & COORDINATE GO-TO BAR (TOP RIGHT)
+  // 1. TACTICAL SEARCH & COORDINATE GO-TO BAR (Diletakkan dahulu supaya berada di kiri dalam susunan flex)
   let searchMarker = null;
   const SearchGoToControl = L.Control.extend({
     options: { position: 'topright' },
@@ -701,7 +663,6 @@ const initMap = () => {
           const val = input.value.trim();
           if (!val) return;
           let lat, lon;
-          // Logik A: Input Koordinat (Format: "3.85, 103.5" atau "3.85 103.5")
           const coordRegex = /^([-+]?\d*\.?\d+)[,\s]+([-+]?\d*\.?\d+)$/;
           const match = val.match(coordRegex);
 
@@ -709,7 +670,6 @@ const initMap = () => {
             lat = parseFloat(match[1]); lon = parseFloat(match[2]);
             executeGoTo(lat, lon);
           } else {
-            // Logik B: Geocoding Nama Tempat (Nominatim API)
             try {
               const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}`);
               const data = await res.json();
@@ -731,6 +691,43 @@ const initMap = () => {
     }
   });
   new SearchGoToControl().addTo(mapInstance);
+
+  // ============================================================================
+  // 2. GABUNGKAN KE DALAM LAYER CONTROL (Akan muncul di sebelah kanan Search)
+  // ============================================================================
+  if (!window.mapLayerControl) {
+    window.mapLayerControl = L.control.layers(null, {
+      "Sempadan MSRR Malaysia": layerMSRR,
+      "Sempadan Pelantar Benua (1979)": sempadanMalaysia
+    }, { position: 'topright' }).addTo(mapInstance);
+  } else {
+    window.mapLayerControl.addOverlay(layerMSRR, "Sempadan MSRR Malaysia");
+    window.mapLayerControl.addOverlay(sempadanMalaysia, "Sempadan Pelantar Benua (1979)");
+  }
+
+  // 3. LIVE COORDINATE TRACKER (PENJEJAK LATLONG TETIKUS - BOTTOM LEFT)
+  const MousePositionControl = L.Control.extend({
+    options: { position: 'bottomleft' },
+    onAdd: function () {
+      this._container = L.DomUtil.create('div', 'leaflet-control-mouseposition');
+      this._container.style.backgroundColor = '#0f172a';
+      this._container.style.border = '1px solid #38bdf8';
+      this._container.style.color = '#38bdf8';
+      this._container.style.fontFamily = 'monospace';
+      this._container.style.fontSize = '11px';
+      this._container.style.fontWeight = 'bold';
+      this._container.style.padding = '4px 8px';
+      this._container.style.borderRadius = '4px';
+      this._container.innerHTML = '🌐 LAT: 0.0000 | LON: 0.0000';
+      return this._container;
+    },
+    updateCoords: function (latlng) {
+      this._container.innerHTML = `🌐 LAT: ${latlng.lat.toFixed(4)} | LON: ${latlng.lng.toFixed(4)}`;
+    }
+  });
+  const mousePos = new MousePositionControl();
+  mousePos.addTo(mapInstance);
+  mapInstance.on('mousemove', (e) => mousePos.updateCoords(e.latlng));
 
   toolsLayer.clearLayers()
   toolsLayer.addTo(mapInstance)
@@ -1507,6 +1504,11 @@ const hantarMesejChatSupabase = async () => {
 :global(body) { margin: 0 !important; padding: 0 !important; width: 100vw; height: 100vh; overflow: hidden; background-color: #020617; }
 :global(#app) { max-width: none !important; padding: 0 !important; margin: 0 !important; width: 100%; height: 100%; display: flex; }
 *, *::before, *::after { box-sizing: border-box; }
+
+/* Kawalan susunan butang di Top Right supaya mendatar */
+.leaflet-top.leaflet-right { display: flex; flex-direction: row; align-items: flex-start; justify-content: flex-end; padding: 10px; gap: 10px; }
+.leaflet-top.leaflet-right .leaflet-control { margin: 0 !important; }
+
 .custom-area-label { background: none !important; border: none !important; }
 
 .map-toolbar {
