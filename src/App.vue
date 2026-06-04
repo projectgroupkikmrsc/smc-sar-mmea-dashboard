@@ -4,7 +4,7 @@
     <!-- 🚨 EMERGENCY BROADCAST POP-UP -->
     <div v-if="paparAmaran" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.9); z-index: 9999; display: flex; justify-content: center; align-items: center;">
       <div style="background-color: #ff0000; padding: 40px; border-radius: 10px; border: 5px solid white; text-align: center; max-width: 600px; box-shadow: 0 0 50px red;">
-        <h1 style="color: white; font-size: 32px; font-weight: bold; margin-bottom: 20px;">🚨 ARAHAN KECEMASAN MRCC 🚨</h1>
+        <h1 style="color: white; font-size: 32px; font-weight: bold; margin-bottom: 20px;">🚨 ALLERT 🚨</h1>
         <p style="color: white; font-size: 24px; margin-bottom: 30px;">{{ amaranAdmin }}</p>
         <button @click="paparAmaran = false" style="background-color: white; color: red; font-size: 20px; font-weight: bold; padding: 15px 30px; border: none; border-radius: 5px; cursor: pointer;">SAYA MAKLUM & SAHKAN</button>
       </div>
@@ -74,6 +74,22 @@
           <div>
             <h1 style="margin: 0; font-size: 18px; letter-spacing: 1px; color: #f8fafc;">SAR MISSION COORDINATOR DASHBOARD</h1>
             <span style="font-size: 11px; color: #38bdf8; font-weight: bold; letter-spacing: 0.5px;">STESEN: {{ activeStation }} // OPERATIONS OVERSEER SYSTEM</span>
+
+            <!-- STATUS KEHADIRAN (DIPAPARKAN KEPADA SEMUA USER) -->
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; align-items: center; background: rgba(15, 23, 42, 0.5); padding: 6px 12px; border-radius: 4px; border: 1px solid #1e293b; box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);">
+              <span style="color: #00ffcc; font-size: 10px; font-weight: 800; letter-spacing: 1px; opacity: 0.8; text-transform: uppercase;">Network Presence:</span>
+              
+              <div v-for="stesen in stesenList" :key="stesen" style="display: flex; align-items: center; gap: 6px;">
+                <!-- Lampu Indikator Hijau (Online) / Kelabu (Offline) -->
+                <span :style="{
+                  width: '8px', height: '8px', borderRadius: '50%',
+                  backgroundColor: onlineUsers.includes(stesen) ? '#22c55e' : '#475569',
+                  boxShadow: onlineUsers.includes(stesen) ? '0 0 6px #22c55e' : 'none',
+                  transition: 'all 0.3s ease'
+                }"></span>
+                <span :style="{ color: onlineUsers.includes(stesen) ? '#f8fafc' : '#94a3b8', fontSize: '10px', fontWeight: onlineUsers.includes(stesen) ? '700' : '500' }">{{ stesen }}</span>
+              </div>
+            </div>
           </div>
         </div>
         <div style="display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 2px;">
@@ -445,6 +461,34 @@ const amaranAdmin = ref('')
 const paparAmaran = ref(false)
 const mesejBroadcast = ref('')
 
+// User Presence Logic
+const onlineUsers = ref([]);
+const stesenList = [
+  'MRCC Putrajaya',
+  'MRSC Langkawi',
+  'MRSC Klang',
+  'MRSC Johor Baharu',
+  'MRSC Kuantan',
+  'MRSC Kota Kinabalu',
+  'MRSC Kuching'
+];
+
+// Cipta channel khas untuk Presence
+const presenceChannel = supabase.channel('online-users');
+
+presenceChannel
+  .on('presence', { event: 'sync' }, () => {
+    const state = presenceChannel.presenceState();
+    const active = [];
+    for (const id in state) {
+      if (state[id][0]?.station) {
+        active.push(state[id][0].station);
+      }
+    }
+    onlineUsers.value = active; // Kemaskini senarai user yang online
+  })
+  .subscribe();
+
 // TELEMETRY MANAGEMENT (REAL-TIME GPS)
 const telemetriRealtime = ref([])
 
@@ -494,6 +538,10 @@ const initializeDashboard = async () => {
     mapInstance.setView([4.5, 109.0], 5)
   } else if ((activeStation.value === 'MRSC Kota Kinabalu' || activeStation.value === 'MRSC Kuching') && mapInstance) {
     mapInstance.setView([4.0, 114.0], 7)
+  }
+
+  if (activeStation.value && activeStation.value !== 'Admin System') {
+     presenceChannel.track({ station: activeStation.value });
   }
 
   await recallPlanDariSupabase()
