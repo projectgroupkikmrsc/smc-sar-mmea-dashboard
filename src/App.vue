@@ -601,28 +601,32 @@ const initMap = () => {
   // 1. LAYER MSRR (Sempadan Carian & Menyelamat)
   // ============================================================================
 
-  // MSRR Selat Melaka & Laut China Selatan (Bahagian Barat)
+  // MSRR Selat Melaka & Laut China Selatan (Semenanjung)
   const msrrBarat = L.polygon([
     [6.5000, 99.0000], [7.2500, 98.0000], [10.0000, 96.5000], [10.0000, 94.4167],
     [6.0000, 94.4167], [6.0000, 97.5000], [1.6500, 102.1667], [1.2833, 103.6000],
     [1.2833, 103.6333], [1.2833, 104.0833], [1.2167, 104.2167], [1.3833, 104.5000],
     [1.9000, 105.0833], [4.0000, 105.0833], [6.0000, 106.0000], [7.8333, 103.0500]
-  ], { color: 'blue', weight: 2, fillOpacity: 0.1, dashArray: '5, 5' }).bindPopup("MSRR: Selat Melaka / Laut China Selatan");
+  ], { color: 'blue', weight: 2, fillOpacity: 0.1, dashArray: '5, 5' }).bindPopup("MSRR: Selat Melaka / Semenanjung");
 
-  // MSRR Laut China Selatan & Laut Sulu (Bahagian Timur)
+  // MSRR Laut China Selatan & Laut Sulu (Borneo) - Ditambah Titik Pantai (Tg Datu & Sebatik)
   const msrrTimur = L.polygon([
+    [2.0833, 109.6467], // Titik 19: Pantai Tg. Datu (Sempadan Sarawak)
     [6.2833, 109.6333], [10.0000, 111.5000], [10.0000, 116.0000], [7.6833, 116.0000],
     [7.6833, 118.0000], [6.3333, 118.0000], [6.0000, 118.3333], [6.0000, 118.9167],
     [5.2667, 119.5833], [4.7000, 119.0000], [4.4000, 119.0000], [4.4000, 120.0000],
-    [4.0000, 120.0000], [4.0000, 118.0000]
-  ], { color: 'red', weight: 2, fillOpacity: 0.1, dashArray: '5, 5' }).bindPopup("MSRR: Laut China Selatan / Laut Sulu");
+    [4.0000, 120.0000], [4.0000, 118.0000], 
+    [4.1667, 117.8995]  // Titik 34: Pantai Sempadan Sabah/Kalimantan
+  ], { color: 'red', weight: 2, fillOpacity: 0.1, dashArray: '5, 5' }).bindPopup("MSRR: Borneo (Sabah & Sarawak)");
 
   const layerMSRR = L.layerGroup([msrrBarat, msrrTimur]);
 
   // ============================================================================
   // 2. LAYER SEMPADAN PELANTAR BENUA MALAYSIA (1979)
   // ============================================================================
-  const sempadanMalaysia = L.polyline([
+
+  // Titik 1 - 47 (Semenanjung)
+  const pelantarSemenanjung = L.polyline([
     [6.3067, 99.4583], [6.2717, 99.3217], [6.3000, 99.1117], [5.9500, 98.0250],
     [5.4500, 98.2917], [4.9283, 98.6917], [3.9933, 99.7267], [3.7900, 99.9167],
     [2.8600, 101.0033], [2.6917, 101.2017], [2.2567, 101.7750], [1.9200, 102.2233],
@@ -632,10 +636,7 @@ const initMap = () => {
     [1.2700, 104.1183], [1.2608, 104.1578], [1.2275, 104.2112], [1.2700, 104.2692],
     [1.2750, 104.3300], [1.2592, 104.4742], [1.2825, 104.4888], [1.3983, 104.4917],
     [1.6333, 104.8833], [1.9067, 105.0867], [2.3750, 105.0200], [2.9200, 104.8583],
-    [3.8350, 104.7750], [4.0500, 104.8650], [5.0783, 105.4800], [5.6767, 105.7850],
-    [6.0967, 105.8200], [6.8042, 104.5000], [7.8167, 103.0417], [7.1708, 102.4833],
-    [6.8333, 102.3533], [6.4633, 102.1600], [6.4583, 102.1667]
-  ], { color: 'green', weight: 3, opacity: 0.8 }).bindPopup("Sempadan Pelantar Benua Malaysia (1979)");
+    [3.8350, 104.7750], [4.0500, 104.8650], [5.0783, 10
 
   // 1. TACTICAL SEARCH & COORDINATE GO-TO BAR (Diletakkan dahulu supaya berada di kiri dalam susunan flex)
   let searchMarker = null;
