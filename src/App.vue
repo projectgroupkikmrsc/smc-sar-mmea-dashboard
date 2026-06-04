@@ -26,6 +26,8 @@
               <option value="MRSC Kuantan">MRSC Kuantan (Wilayah Timur)</option>
               <option value="MRSC Kota Kinabalu">MRSC Kota Kinabalu (Wilayah Sabah)</option>
               <option value="MRSC Kuching">MRSC Kuching (Wilayah Sarawak)</option>
+              <option disabled>──────────────</option>
+              <option value="Admin System" style="color: #ef4444; font-weight: bold;">🛠️ Admin System (Maintenance)</option>
             </select>
           </div>
           <div>
@@ -402,6 +404,7 @@ const isLoggedIn = ref(false)
 const loginError = ref('')
 const activeStation = ref('')
 const activeRegion = ref('')
+const isAdmin = computed(() => activeStation.value === 'Admin System');
 const loginForm = ref({ stationId: '', password: '' })
 
 // TELEMETRY MANAGEMENT (REAL-TIME GPS)
@@ -430,13 +433,27 @@ const pemetaanStesenRegion = {
   'MRSC Johor Baharu': 'SELATAN',
   'MRSC Kuantan': 'TIMUR',
   'MRSC Kota Kinabalu': 'SABAH',
-  'MRSC Kuching': 'SARAWAK'
+  'MRSC Kuching': 'SARAWAK',
+  'Admin System': 'GLOBAL'
 }
+
+watch(() => loginForm.value.stationId, (val) => {
+  if (val === 'Admin System') {
+    const pw = prompt("Sila masukkan kata laluan Admin:");
+    if (pw !== "zulhairy87") {
+      alert("Kata laluan salah!");
+      loginForm.value.stationId = '';
+    }
+  }
+});
 
 const initializeDashboard = async () => {
   await nextTick()
   await tarikDataKes()
   initMap()
+  if (isAdmin.value && mapInstance) {
+    mapInstance.setView([4.5, 109.0], 5);
+  }
   await recallPlanDariSupabase()
 
   // Pastikan 3 baris ini ada di sini:
@@ -1541,6 +1558,52 @@ const hantarMesejChatSupabase = async () => {
     console.error("Gagal hantar mesej:", error)
   }
 }
+
+// ============================================================================
+// GOD MODE FUNCTIONS (ADMIN ONLY)
+// ============================================================================
+
+// A: Padam satu mesej chat
+const padamMesej = async (mesejId) => {
+  if (!confirm("Padam mesej ini?")) return;
+  await supabase.from('sar_messages').delete().eq('id', mesejId);
+};
+
+// B: Padam SEMUA mesej chat
+const padamSemuaMesej = async () => {
+  if (!confirm("AMARAN: Anda pasti mahu memadam KESEMUA sejarah mesej operasi?")) return;
+  await supabase.from('sar_messages').delete().neq('id', 0); // Padam semua rekod
+  alert("Semua mesej telah dibersihkan.");
+};
+
+// C: Padam SEMUA pelan/lukisan operasi di peta
+const padamSemuaPelan = async () => {
+  if (!confirm("AMARAN: Anda pasti mahu memadam KESEMUA lukisan pelan SAR di peta?")) return;
+  await supabase.from('sar_plans').delete().neq('id', 0);
+  alert("Semua pelan SAR telah dibersihkan dari peta.");
+};
+
+// D: Cuci sejarah Telemetri GPS (Kosongkan jadual sru_telemetry)
+const padamSejarahGPS = async () => {
+  if (!confirm("AMARAN: Anda pasti mahu mencuci sejarah pergerakan GPS (SRU Telemetry)?")) return;
+  await supabase.from('sru_telemetry').delete().neq('id', 0);
+  alert("Sejarah GPS telah dikosongkan.");
+};
+
+// E: Hantar Pengumuman Am (Broadcast)
+const mesejBroadcast = ref('');
+const hantarBroadcast = () => {
+  if (!mesejBroadcast.value) return;
+  // Meminjam jadual sar_messages tetapi menggunakan flag/nama khas untuk Broadcast
+  supabase.from('sar_messages').insert([{ 
+    sender: 'PENGUMUMAN ADMIN', 
+    message: mesejBroadcast.value,
+    chat_type: 'global'
+  }]).then(() => {
+    alert("Pengumuman telah dihantar ke semua stesen!");
+    mesejBroadcast.value = '';
+  });
+};
 </script>
 
 <style>
