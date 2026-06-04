@@ -394,7 +394,7 @@ import { ref, onMounted, computed, nextTick, watch } from 'vue'
 import { supabase } from './supabase'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import logoBclbb from './assets/logo_bclbb.jpg'
+import logoBclbb from './assets/logo_bclbb.png'
 import bgLogin from './assets/background_1st_page.jpg'
 
 // PAGE 1 MANAGEMENT
