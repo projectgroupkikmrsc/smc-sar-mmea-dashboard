@@ -80,6 +80,27 @@
       <div style="display: grid; grid-template-columns: 320px 1fr 340px; gap: 12px; padding: 12px; flex: 1; min-height: 0; box-sizing: border-box; width: 100%;">
         
         <div style="display: flex; flex-direction: column; gap: 12px; min-height: 0; z-index: 20;">
+
+          <!-- 🛑 SYSTEM ADMIN CONTROL (GOD MODE) -->
+          <div v-if="isAdmin" style="background: #2d0a0a; border-radius: 6px; border: 1px solid #7f1d1d; border-top: 3px solid #ef4444; padding: 12px; flex-shrink: 0; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);">
+            <h4 style="margin: 0 0 10px 0; font-size: 11px; color: #f87171; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">⚡ SYSTEM COMMAND PANEL</h4>
+            
+            <!-- Broadcast UI -->
+            <div style="margin-bottom: 12px;">
+              <label style="display: block; font-size: 9px; font-weight: bold; color: #fca5a5; margin-bottom: 4px; text-transform: uppercase;">Global Emergency Broadcast</label>
+              <div style="display: flex; gap: 4px;">
+                <input type="text" v-model="mesejBroadcast" placeholder="Info ke semua stesen..." style="flex: 1; padding: 6px 10px; background: #000; border: 1px solid #7f1d1d; border-radius: 4px; color: white; font-size: 11px;" @keyup.enter="hantarBroadcast" />
+                <button @click="hantarBroadcast" style="background: #ef4444; color: white; border: none; padding: 0 8px; border-radius: 4px; font-weight: bold; font-size: 10px; cursor: pointer;">Hantar</button>
+              </div>
+            </div>
+
+            <!-- Data Management Tools -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+              <button @click="padamSemuaMesej" style="background: #450a0a; color: #fca5a5; border: 1px solid #7f1d1d; padding: 6px; font-size: 10px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s;">🧹 Clear Chats</button>
+              <button @click="padamSemuaPelan" style="background: #450a0a; color: #fca5a5; border: 1px solid #7f1d1d; padding: 6px; font-size: 10px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s;">🗺️ Clear Plans</button>
+              <button @click="padamSejarahGPS" style="background: #450a0a; color: #fca5a5; border: 1px solid #7f1d1d; padding: 6px; font-size: 10px; border-radius: 4px; font-weight: bold; cursor: pointer; grid-column: span 2; transition: 0.2s;">🛰️ Wipe GPS Telemetry History</button>
+            </div>
+          </div>
           
           <div style="background: #1e293b; border-radius: 6px; border: 1px solid #334155; border-top: 3px solid #38bdf8; padding: 12px; flex-shrink: 0;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -246,18 +267,21 @@
                    <span style="font-weight: 800; color: #334155; font-size: 10px;">{{ msg.sender }}</span>
                    <span style="color: #94a3b8; font-size: 9px; margin-left: 8px;">{{ formatMasaChat(msg.created_at) }}</span>
                  </div>
-                 <div :style="{
-                   background: msg.sender === activeStation ? '#e0f2fe' : '#ffffff',
-                   padding: '10px 14px',
-                   borderRadius: msg.sender === activeStation ? '12px 0 12px 12px' : '0 12px 12px 12px',
-                   border: msg.sender === activeStation ? '1px solid #90cdf4' : '1px solid #e2e8f0',
-                   color: '#1e293b',
-                   lineHeight: '1.5',
-                   boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                   maxWidth: '80%',
-                   'align-self': msg.sender === activeStation ? 'flex-end' : 'flex-start'
-                 }">
-                   {{ msg.message }}
+                 <div style="display: flex; gap: 8px; align-items: center;" :style="{ 'flex-direction': msg.sender === activeStation ? 'row-reverse' : 'row', 'align-self': msg.sender === activeStation ? 'flex-end' : 'flex-start' }">
+                   <div :style="{
+                     background: msg.sender === activeStation ? '#e0f2fe' : '#ffffff',
+                     padding: '10px 14px',
+                     borderRadius: msg.sender === activeStation ? '12px 0 12px 12px' : '0 12px 12px 12px',
+                     border: msg.sender === activeStation ? '1px solid #90cdf4' : '1px solid #e2e8f0',
+                     color: '#1e293b',
+                     lineHeight: '1.5',
+                     boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                     maxWidth: '100%'
+                   }">
+                     {{ msg.message }}
+                   </div>
+                   <!-- Individual message delete for Admin -->
+                   <button v-if="isAdmin" @click="padamMesej(msg.id)" title="Padam Mesej" style="background: none; border: none; cursor: pointer; font-size: 11px; opacity: 0.4;">🗑️</button>
                  </div>
                </div>
             </div>
@@ -1441,27 +1465,17 @@ const langganMesejRealtimeSupabase = () => {
   chatChannelSubscription = supabase.channel('sar-messages-live')
     .on(
       'postgres_changes', 
-      { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'sar_messages' 
-      }, 
+      { event: '*', schema: 'public', table: 'sar_messages' }, 
       (payload) => {
-        console.log("📥 Mesej Real-time diterima:", payload.new)
-        const r = payload.new
-        
-        if (r.sender === activeStation.value) return
-
-        const wujud = senaraiMesejChat.value.some(m => m.id === r.id)
-        if (!wujud) {
-          senaraiMesejChat.value.push(r)
+        if (payload.eventType === 'INSERT') {
+          const r = payload.new
+          if (r.sender === activeStation.value) return
+          if (!senaraiMesejChat.value.some(m => m.id === r.id)) senaraiMesejChat.value.push(r)
+          if (r.chat_type === 'global' && !isGlobalChatActive.value) globalUnreadCount.value++
+          autoScrollChatKeBawah()
+        } else if (payload.eventType === 'DELETE') {
+          senaraiMesejChat.value = senaraiMesejChat.value.filter(m => m.id !== payload.old.id)
         }
-
-        if (r.chat_type === 'global' && !isGlobalChatActive.value) {
-          globalUnreadCount.value++
-        }
-
-        autoScrollChatKeBawah()
       }
     )
     .subscribe((status) => {
