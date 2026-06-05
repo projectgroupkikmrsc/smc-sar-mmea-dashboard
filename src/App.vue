@@ -74,30 +74,21 @@
           <div>
             <h1 style="margin: 0; font-size: 18px; letter-spacing: 1px; color: #f8fafc;">SAR MISSION COORDINATOR DASHBOARD</h1>
             <span style="font-size: 11px; color: #38bdf8; font-weight: bold; letter-spacing: 0.5px;">STESEN: {{ activeStation }} // OPERATIONS OVERSEER SYSTEM</span>
-
-            <!-- STATUS KEHADIRAN (DIPAPARKAN KEPADA SEMUA USER) -->
-            <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; align-items: center; background: rgba(15, 23, 42, 0.5); padding: 6px 12px; border-radius: 4px; border: 1px solid #1e293b; box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);">
-              <span style="color: #00ffcc; font-size: 10px; font-weight: 800; letter-spacing: 1px; opacity: 0.8; text-transform: uppercase;">Network Presence:</span>
-              
-              <div v-for="stesen in stesenList" :key="stesen" style="display: flex; align-items: center; gap: 6px;">
-                <!-- Lampu Indikator Hijau (Online) / Kelabu (Offline) -->
-                <span :style="{
-                  width: '8px', height: '8px', borderRadius: '50%',
-                  backgroundColor: onlineUsers.includes(stesen) ? '#22c55e' : '#475569',
-                  boxShadow: onlineUsers.includes(stesen) ? '0 0 6px #22c55e' : 'none',
-                  transition: 'all 0.3s ease'
-                }"></span>
-                <span :style="{ color: onlineUsers.includes(stesen) ? '#f8fafc' : '#94a3b8', fontSize: '10px', fontWeight: onlineUsers.includes(stesen) ? '700' : '500' }">{{ stesen }}</span>
-              </div>
-            </div>
           </div>
         </div>
-        <div style="display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 2px;">
-          <div style="font-size: 11px; font-weight: bold; color: #34d399; text-transform: uppercase;">
-            🟢 CONNECTED TO DATABASE
-          </div>
-          <div style="font-size: 9px; font-weight: 600; color: #38bdf8; text-transform: uppercase; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            {{ tacticalLogs[0] || 'WAITING FOR SYSTEM LOGS...' }}
+        <!-- STATUS KEHADIRAN (DIPAPARKAN KEPADA SEMUA USER) -->
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; background: rgba(15, 23, 42, 0.5); padding: 8px 16px; border-radius: 6px; border: 1px solid #1e293b; box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); justify-content: flex-end;">
+          <span style="color: #00ffcc; font-size: 10px; font-weight: 800; letter-spacing: 1px; opacity: 0.8; text-transform: uppercase;">Network Presence:</span>
+          
+          <div v-for="stesen in stesenList" :key="stesen" style="display: flex; align-items: center; gap: 6px;">
+            <!-- Lampu Indikator Hijau (Online) / Kelabu (Offline) -->
+            <span :style="{
+              width: '8px', height: '8px', borderRadius: '50%',
+              backgroundColor: onlineUsers.includes(stesen) ? '#22c55e' : '#475569',
+              boxShadow: onlineUsers.includes(stesen) ? '0 0 6px #22c55e' : 'none',
+              transition: 'all 0.3s ease'
+            }"></span>
+            <span :style="{ color: onlineUsers.includes(stesen) ? '#f8fafc' : '#94a3b8', fontSize: '10px', fontWeight: onlineUsers.includes(stesen) ? '700' : '500' }">{{ stesen }}</span>
           </div>
         </div>
       </header>
