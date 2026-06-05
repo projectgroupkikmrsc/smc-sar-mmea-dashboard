@@ -223,7 +223,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="tele in telemetriRealtime" :key="tele.id" style="border-bottom: 1px solid #f1f5f9;">
+                <tr v-for="tele in telemetriRealtime" :key="tele.boat_id" style="border-bottom: 1px solid #f1f5f9;">
                   <td style="padding: 10px 0; font-weight: 800; color: #0f172a;">{{ tele.boat_id }}</td>
                   <td style="padding: 10px 0;">{{ tele.speed || '0.0' }}</td>
                   <td style="padding: 10px 0;">{{ tele.course ? tele.course + '°' : '---' }}</td>
@@ -545,14 +545,32 @@ const langganTelemetriMMEA = () => {
   supabase
     .channel('sru_status_live')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'sru_telemetry' }, payload => {
+      
       if (payload.eventType === 'INSERT') {
-        telemetriRealtime.value.push(payload.new)
-      } else if (payload.eventType === 'UPDATE') {
-        const idx = telemetriRealtime.value.findIndex(t => t.id === payload.new.id)
-        if (idx !== -1) telemetriRealtime.value[idx] = payload.new
-      } else if (payload.eventType === 'DELETE') {
-        telemetriRealtime.value = telemetriRealtime.value.filter(t => t.id !== payload.old.id)
+        const idx = telemetriRealtime.value.findIndex(t => t.boat_id === payload.new.boat_id);
+        if (idx !== -1) {
+          // JIKA DAH WUJUD: Kemaskini data sedia ada tanpa runtuhkan elemen jadual
+          telemetriRealtime.value[idx] = payload.new;
+        } else {
+          // JIKA BARU ONLINE: Masukkan baris baru
+          telemetriRealtime.value.push(payload.new);
+        }
+      } 
+      
+      else if (payload.eventType === 'UPDATE') {
+        const idx = telemetriRealtime.value.findIndex(t => t.boat_id === payload.new.boat_id);
+        if (idx !== -1) {
+          telemetriRealtime.value[idx] = payload.new;
+        } else {
+          telemetriRealtime.value.push(payload.new);
+        }
+      } 
+      
+      else if (payload.eventType === 'DELETE') {
+        // Buang dari jadual jika bot henti penjejakan
+        telemetriRealtime.value = telemetriRealtime.value.filter(t => t.boat_id !== payload.old.boat_id);
       }
+      
     })
     .subscribe()
 }
