@@ -496,6 +496,50 @@ const mulakanPresence = () => {
 
 // TELEMETRY MANAGEMENT (REAL-TIME GPS)
 const telemetriRealtime = ref([])
+const sruMarkersOnMap = ref({});
+
+const kemaskiniMarkerSRUAtasPeta = () => {
+  if (!mapInstance) return; // Pastikan peta web dah sedia
+
+  // Ambil senarai ID bot yang aktif sedia ada dalam telemetry
+  const sruAktifId = telemetriRealtime.value.map(t => t.id);
+
+  // A: Bersihkan marker jika bot tersebut dah offline / padam tracking
+  Object.keys(sruMarkersOnMap.value).forEach(idKey => {
+    if (!sruAktifId.includes(Number(idKey))) {
+      mapInstance.removeLayer(sruMarkersOnMap.value[idKey]);
+      delete sruMarkersOnMap.value[idKey];
+    }
+  });
+
+  // B: Lukis atau gerakkan marker bot yang sedang memancarkan isyarat GPS
+  telemetriRealtime.value.forEach(tele => {
+    const lat = parseFloat(tele.latitude);
+    const lng = parseFloat(tele.longitude);
+
+    if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
+
+    if (!sruMarkersOnMap.value[tele.id]) {
+      // Jika bot baru online, cipta icon bot taktikal (Contoh: Warna Cyan)
+      const newMarker = L.circleMarker([lat, lng], {
+        color: '#00ffff',
+        fillColor: '#00ffff',
+        fillOpacity: 0.9,
+        radius: 8,
+        weight: 2
+      }).addTo(mapInstance);
+
+      // Ikat maklumat kelajuan dan arah bot pada popup di skrin komander
+      newMarker.bindTooltip(`🛥️ SRU LIVE: ${tele.boat_id}<br>⚡ Kelajuan: ${tele.speed || '0.0'} kts<br>🧭 Arah: ${tele.course ? tele.course + '°' : '---'}`, { permanent: false, direction: 'top' });
+
+      sruMarkersOnMap.value[tele.id] = newMarker;
+    } else {
+      // Jika bot sedia ada bergerak, cuma kemaskini koordinat dan kandungan tooltip secara live
+      sruMarkersOnMap.value[tele.id].setLatLng([lat, lng]);
+      sruMarkersOnMap.value[tele.id].setTooltipContent(`🛥️ SRU LIVE: ${tele.boat_id}<br>⚡ Kelajuan: ${tele.speed || '0.0'} kts<br>🧭 Arah: ${tele.course ? tele.course + '°' : '---'}`);
+    }
+  });
+};
 
 const langganTelemetriMMEA = () => {
   supabase
@@ -1699,6 +1743,10 @@ const hantarBroadcast = async () => {
     mesejBroadcast.value = '';
   }
 };
+
+watch(telemetriRealtime, () => {
+  kemaskiniMarkerSRUAtasPeta();
+}, { deep: true });
 </script>
 
 <style>
