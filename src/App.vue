@@ -250,31 +250,32 @@
           <div style="background: #ffffff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 16px; color: #1e293b; flex: 1; display: flex; flex-direction: column; min-height: 0; border: 1px solid #e2e8f0;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
               <h4 style="margin: 0; font-size: 13px; font-weight: 800; color: #0f172a; letter-spacing: 0.5px;">💬 SRU COMMUNICATION</h4>
-              <span v-if="globalUnreadCount > 0 && activeChatTab !== 'global'" style="background: #fee2e2; color: #ef4444; font-size: 9px; font-weight: 900; padding: 3px 8px; border-radius: 20px; border: 1px solid #fecaca;">
-                {{ globalUnreadCount }} UNREAD
-              </span>
             </div>
 
             <!-- TABS SYSTEM: GLOBAL & LOCAL -->
             <div style="display: flex; gap: 8px; margin-bottom: 15px;">
               <button 
                 @click="activeChatTab = 'global'; langganMesejRealtimeSupabase()" 
-                :style="{
+                :style="[tabButtonStyle, {
                   background: activeChatTab === 'global' ? '#2563eb' : '#e2e8f0',
                   color: activeChatTab === 'global' ? 'white' : '#64748b',
-                  border: activeChatTab === 'global' ? 'none' : '1px solid #e2e8f0',
-                  padding: '7px 16px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', cursor: 'pointer', transition: '0.2s', flex: '1'
-                }"
-              >Global</button>
+                  flex: '1'
+                }]"
+              >
+                Global
+                <span v-if="globalUnreadCount > 0" class="badge-unread">{{ globalUnreadCount }}</span>
+              </button>
               <button 
                 @click="activeChatTab = 'local'; langganMesejRealtimeSupabase()" 
-                :style="{
+                :style="[tabButtonStyle, {
                   background: activeChatTab === 'local' ? '#2563eb' : '#e2e8f0',
                   color: activeChatTab === 'local' ? 'white' : '#64748b',
-                  border: activeChatTab === 'local' ? 'none' : '1px solid #e2e8f0',
-                  padding: '7px 16px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', cursor: 'pointer', transition: '0.2s', flex: '1'
-                }"
-              >Local</button>
+                  flex: '1'
+                }]"
+              >
+                Local
+                <span v-if="localUnreadCount > 0" class="badge-unread">{{ localUnreadCount }}</span>
+              </button>
             </div>
 
             <div class="chat-messages-container" style="flex: 1; background-color: #f8fafc; border-radius: 8px; border: 1px solid #f1f5f9; padding: 12px; font-size: 11px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
@@ -307,6 +308,8 @@
                 type="text" 
                 v-model="inputMesejBaru" 
                 @keyup.enter="hantarMesejChatSupabase"
+                @focus="isInputFocused = true; bersihkanUnread()"
+                @blur="isInputFocused = false"
                 :placeholder="localChatPlaceholder" 
                 :disabled="isLocalChatInputDisabled"
                 style="width: 100%; border: 1px solid #e2e8f0; padding: 12px 45px 12px 18px; border-radius: 25px; font-size: 11px; outline: none; transition: 0.2s;"
@@ -530,13 +533,14 @@ const kemaskiniMarkerSRUAtasPeta = () => {
     const currentPos = L.latLng(lat, lng);
 
     if (!sruMarkersOnMap.value[tele.id]) {
-      // Jika bot baru online, cipta icon bot taktikal (Contoh: Warna Cyan)
+      // Jika bot baru online, cipta icon bot taktikal (Kecil & Berkelip Neon)
       const newMarker = L.circleMarker(currentPos, {
-        color: '#00ffff',
-        fillColor: '#00ffff',
-        fillOpacity: 0.9,
-        radius: 8,
-        weight: 2
+        color: '#22c55e', // Hijau Neon
+        fillColor: '#22c55e',
+        fillOpacity: 1,
+        radius: 5, // Saiz dikecilkan
+        weight: 2,
+        className: 'sru-marker-blink' // Class untuk animasi CSS
       }).addTo(mapInstance);
 
       // Ikat maklumat kelajuan dan arah bot pada popup di skrin komander
@@ -565,7 +569,7 @@ const kemaskiniMarkerSRUAtasPeta = () => {
       if (!sruReachedCsp.value[tele.id]) {
         if (!sruCspLinesOnMap.value[tele.id]) {
           sruCspLinesOnMap.value[tele.id] = L.polyline([currentPos, cspPos], {
-            color: '#fbbf24', // Warna Amber/Kuning
+            color: '#000000', // Warna Hitam untuk lebih jelas
             weight: 2,
             dashArray: '5, 10',
             opacity: 0.7,
@@ -739,6 +743,8 @@ const senaraiMesejChat = ref([])
 const inputMesejBaru = ref('')
 const activeChatTab = ref('global')
 const globalUnreadCount = ref(0) // New ref for unread count
+const localUnreadCount = ref(0)
+const isInputFocused = ref(false)
 const paparkanTrekLaluan = ref(false)
 let chatChannelSubscription = null
 let mapInstance = null
@@ -795,8 +801,6 @@ const paparanSRUKesAktif = computed(() => {
 
 const filteredMesejChat = computed(() => {
   if (isGlobalChatActive.value) {
-    // Reset unread count when global tab is active
-    globalUnreadCount.value = 0;
     return senaraiMesejChat.value.filter(m => m.chat_type === 'global' && m.case_id === null);
   } else if (isLocalChatActive.value) {
     // Jika pilih ALL, paparkan semua mesej local yang terikat di bawah wilayah stesen tersebut
@@ -808,6 +812,11 @@ const filteredMesejChat = computed(() => {
   }
   return [];
 })
+
+const bersihkanUnread = () => {
+  if (activeChatTab.value === 'global') globalUnreadCount.value = 0
+  else localUnreadCount.value = 0
+}
 
 const isLocalChatInputDisabled = computed(() => {
   if (isLocalChatActive.value) {
@@ -827,6 +836,17 @@ const localChatPlaceholder = computed(() => {
   }
   return 'Transmit message...'
 })
+
+const tabButtonStyle = {
+  border: 'none',
+  padding: '7px 16px',
+  borderRadius: '6px',
+  fontSize: '11px',
+  fontWeight: '800',
+  cursor: 'pointer',
+  transition: '0.2s',
+  position: 'relative'
+}
 
 const initMap = () => {
   const mapContainer = document.getElementById('map')
@@ -1687,7 +1707,13 @@ const langganMesejRealtimeSupabase = () => {
             // Notifikasi untuk setiap mesej masuk dari stesen lain
             hantarNotifikasiTaktikal(r.sender, r.message, false);
 
-            if (r.chat_type === 'global' && !isGlobalChatActive.value) globalUnreadCount.value++
+            if (r.chat_type === 'global') {
+              if (!(isGlobalChatActive.value && isInputFocused.value)) globalUnreadCount.value++
+            } else if (r.chat_type === 'local') {
+              if (selectedCaseId.value === 'ALL' || r.case_id === Number(selectedCaseId.value)) {
+                if (!(isLocalChatActive.value && isInputFocused.value)) localUnreadCount.value++
+              }
+            }
             autoScrollChatKeBawah()
           }
         } else if (payload.eventType === 'DELETE') {
@@ -1740,7 +1766,6 @@ const loadTrackHistory = async () => {
     L.polyline(coords, { 
       color: '#06b6d4', 
       weight: 3, 
-      dashArray: '6, 8', 
       opacity: 0.85 
     }).addTo(trackHistoryLayer)
   })
@@ -1816,9 +1841,10 @@ const padamSemuaPelan = async () => {
 
 // D: Cuci sejarah Telemetri GPS (Kosongkan jadual sru_telemetry)
 const padamSejarahGPS = async () => {
-  if (!confirm("AMARAN: Anda pasti mahu mencuci sejarah pergerakan GPS (SRU Telemetry)?")) return;
-  await supabase.from('sru_telemetry').delete().neq('id', 0);
-  alert("Sejarah GPS telah dikosongkan.");
+  if (!confirm("AMARAN: Anda pasti mahu mencuci SEMUA sejarah pergerakan GPS (SRU Tracks)? Garisan sejarah pada peta akan hilang secara kekal.")) return;
+  await supabase.from('sru_tracks').delete().neq('id', 0);
+  if (trackHistoryLayer) trackHistoryLayer.clearLayers();
+  alert("Sejarah trek pergerakan telah dibersihkan.");
 };
 
 // E: Hantar Pengumuman Am (Broadcast)
@@ -1881,5 +1907,35 @@ watch(telemetriRealtime, () => {
 .map-toolbar button:hover { background: #334155; }
 .map-toolbar button.active { background: #2563eb; border-color: #38bdf8; }
 
+/* Animasi Mentol Berkelip untuk SRU */
+.sru-marker-blink {
+  animation: sru-glow-pulse 0.8s infinite alternate;
+}
+
+@keyframes sru-glow-pulse {
+  from { opacity: 0.6; filter: drop-shadow(0 0 2px #22c55e); }
+  to { opacity: 1; filter: drop-shadow(0 0 10px #22c55e); }
+}
+
 @keyframes popupAnim { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+.badge-unread {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background-color: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  z-index: 10;
+}
 </style>
