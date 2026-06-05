@@ -497,6 +497,8 @@ const mulakanPresence = () => {
 // TELEMETRY MANAGEMENT (REAL-TIME GPS)
 const telemetriRealtime = ref([])
 const sruMarkersOnMap = ref({});
+const sruCspLinesOnMap = ref({}); // Simpan garisan ke CSP
+const sruReachedCsp = ref({}); // Tanda jika SRU sudah sampai ke CSP
 
 const kemaskiniMarkerSRUAtasPeta = () => {
   if (!mapInstance) return; // Pastikan peta web dah sedia
@@ -509,6 +511,12 @@ const kemaskiniMarkerSRUAtasPeta = () => {
     if (!sruAktifId.includes(Number(idKey))) {
       mapInstance.removeLayer(sruMarkersOnMap.value[idKey]);
       delete sruMarkersOnMap.value[idKey];
+      
+      if (sruCspLinesOnMap.value[idKey]) {
+        mapInstance.removeLayer(sruCspLinesOnMap.value[idKey]);
+        delete sruCspLinesOnMap.value[idKey];
+      }
+      delete sruReachedCsp.value[idKey];
     }
   });
 
@@ -519,9 +527,11 @@ const kemaskiniMarkerSRUAtasPeta = () => {
 
     if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
 
+    const currentPos = L.latLng(lat, lng);
+
     if (!sruMarkersOnMap.value[tele.id]) {
       // Jika bot baru online, cipta icon bot taktikal (Contoh: Warna Cyan)
-      const newMarker = L.circleMarker([lat, lng], {
+      const newMarker = L.circleMarker(currentPos, {
         color: '#00ffff',
         fillColor: '#00ffff',
         fillOpacity: 0.9,
@@ -535,8 +545,40 @@ const kemaskiniMarkerSRUAtasPeta = () => {
       sruMarkersOnMap.value[tele.id] = newMarker;
     } else {
       // Jika bot sedia ada bergerak, cuma kemaskini koordinat dan kandungan tooltip secara live
-      sruMarkersOnMap.value[tele.id].setLatLng([lat, lng]);
+      sruMarkersOnMap.value[tele.id].setLatLng(currentPos);
       sruMarkersOnMap.value[tele.id].setTooltipContent(`🛥️ SRU LIVE: ${tele.boat_id}<br>⚡ Kelajuan: ${tele.speed || '0.0'} kts<br>🧭 Arah: ${tele.course ? tele.course + '°' : '---'}`);
+    }
+
+    // LOGIK BARU: Garisan putus-putus ke CSP
+    const sruPlan = senaraiMasterSRU.value.find(s => s.nama === tele.boat_id);
+    if (sruPlan && sruPlan.csp_coord) {
+      const cspPos = L.latLng(sruPlan.csp_coord[0], sruPlan.csp_coord[1]);
+      const distMeters = currentPos.distanceTo(cspPos);
+      const distNM = distMeters / 1852; // Tukar meter ke Nautical Miles
+
+      // Jika jarak kurang dari 0.2 NM, tanda sebagai "sampai"
+      if (distNM < 0.2) {
+        sruReachedCsp.value[tele.id] = true;
+      }
+
+      // Hanya lukis garisan jika belum sampai buat pertama kali
+      if (!sruReachedCsp.value[tele.id]) {
+        if (!sruCspLinesOnMap.value[tele.id]) {
+          sruCspLinesOnMap.value[tele.id] = L.polyline([currentPos, cspPos], {
+            color: '#fbbf24', // Warna Amber/Kuning
+            weight: 2,
+            dashArray: '5, 10',
+            opacity: 0.7,
+            interactive: false
+          }).addTo(mapInstance);
+        } else {
+          sruCspLinesOnMap.value[tele.id].setLatLngs([currentPos, cspPos]);
+        }
+      } else if (sruCspLinesOnMap.value[tele.id]) {
+        // Hilangkan garisan jika sudah sampai
+        mapInstance.removeLayer(sruCspLinesOnMap.value[tele.id]);
+        delete sruCspLinesOnMap.value[tele.id];
+      }
     }
   });
 };
@@ -596,8 +638,35 @@ watch(() => loginForm.value.stationId, (val) => {
   }
 });
 
+const hantarNotifikasiTaktikal = (sender, msg, isEmergency = false) => {
+  // 1. Mainkan Bunyi (Cara paling berkesan untuk bilik operasi)
+  // Bunyi Ping untuk mesej biasa, bunyi Siren untuk Emergency Broadcast
+  const soundUrl = isEmergency 
+    ? 'https://assets.mixkit.co/active_storage/sfx/951/951-preview.mp3' 
+    : 'https://assets.mixkit.co/active_storage/sfx/2357/2357-preview.mp3';
+  
+  const audio = new Audio(soundUrl);
+  audio.play().catch(() => {
+    console.warn("Autoplay bunyi disekat oleh pelayar. Sila berinteraksi dengan peta dahulu.");
+  });
+
+  // 2. Notifikasi Desktop (Jika tab disorokkan/minimized)
+  if (window.Notification && Notification.permission === 'granted' && document.hidden) {
+    new Notification(`Mesej SAR: ${sender}`, {
+      body: msg,
+      icon: logoBclbb
+    });
+  }
+};
+
 const initializeDashboard = async () => {
   await nextTick()
+
+  // Minta kebenaran notifikasi desktop sebaik sahaja masuk dashboard
+  if (window.Notification && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+
   await tarikDataKes()
   initMap()
 
@@ -1213,7 +1282,8 @@ const recallPlanDariSupabase = async () => {
       }
 
       senaraiMasterSRU.value.push({
-        id: row.id, caseId: row.case_id, nama: row.sru_name, corak: row.pattern_name, kawasanNama: row.zone_name, grafikPeta: elemenGrafikPeta
+        id: row.id, caseId: row.case_id, nama: row.sru_name, corak: row.pattern_name, kawasanNama: row.zone_name, grafikPeta: elemenGrafikPeta,
+        csp_coord: row.csp_coord
       })
     })
     tukarKesTaktikal()
@@ -1609,9 +1679,14 @@ const langganMesejRealtimeSupabase = () => {
           if (r.sender === 'PENGUMUMAN ADMIN') {
             amaranAdmin.value = r.message
             paparAmaran.value = true
+            hantarNotifikasiTaktikal('ADMIN', r.message, true);
           } else {
             if (r.sender === activeStation.value) return
             if (!senaraiMesejChat.value.some(m => m.id === r.id)) senaraiMesejChat.value.push(r)
+            
+            // Notifikasi untuk setiap mesej masuk dari stesen lain
+            hantarNotifikasiTaktikal(r.sender, r.message, false);
+
             if (r.chat_type === 'global' && !isGlobalChatActive.value) globalUnreadCount.value++
             autoScrollChatKeBawah()
           }
