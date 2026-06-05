@@ -273,7 +273,7 @@
                   flex: '1'
                 }]"
               >
-                Local
+                Incident Message
                 <span v-if="localUnreadCount > 0" class="badge-unread">{{ localUnreadCount }}</span>
               </button>
             </div>
@@ -829,10 +829,10 @@ const isLocalChatInputDisabled = computed(() => {
 
 const localChatPlaceholder = computed(() => {
   if (isLocalChatActive.value && !isCaseSelected.value) {
-    return '⚠️ SILA PILIH KES SPESIFIK UNTUK MULA BERSEMBANG...'
+    return '⚠️ SILA PILIH KES SPESIFIK UNTUK MULA MENGHANTAR MESEJ INSIDEN...'
   }
   if (isLocalChatInputDisabled.value) {
-    return '🔒 CHANNEL LOCKED: STATIONS OUTSIDE THIS INCIDENT AREA CANNOT TRANSMIT.'
+    return '🔒 CHANNEL LOCKED: ANDA TIDAK MEMPUNYAI AKSES UNTUK TRANSMIT KE INSIDEN INI.'
   }
   return 'Transmit message...'
 })
@@ -1710,8 +1710,12 @@ const langganMesejRealtimeSupabase = () => {
             if (r.chat_type === 'global') {
               if (!(isGlobalChatActive.value && isInputFocused.value)) globalUnreadCount.value++
             } else if (r.chat_type === 'local') {
-              if (selectedCaseId.value === 'ALL' || r.case_id === Number(selectedCaseId.value)) {
-                if (!(isLocalChatActive.value && isInputFocused.value)) localUnreadCount.value++
+              // HANYA NOTIFY jika kes tersebut milik wilayah stesen ini atau stesen adalah HQ
+              const isRelevantCase = senaraiKes.value.some(k => k.id === r.case_id);
+              if (isRelevantCase && (selectedCaseId.value === 'ALL' || r.case_id === Number(selectedCaseId.value))) {
+                if (!(isLocalChatActive.value && isInputFocused.value)) {
+                  localUnreadCount.value++
+                }
               }
             }
             autoScrollChatKeBawah()
