@@ -464,21 +464,35 @@ const stesenList = [
   'MRSC Kuching'
 ];
 
-// Cipta channel khas untuk Presence
-const presenceChannel = supabase.channel('online-users');
+let presenceChannel = null;
 
-presenceChannel
-  .on('presence', { event: 'sync' }, () => {
-    const state = presenceChannel.presenceState();
-    const active = [];
-    for (const id in state) {
-      if (state[id][0]?.station) {
-        active.push(state[id][0].station);
+// Fungsi untuk memulakan sistem penjejakan status online
+const mulakanPresence = () => {
+  // Buang channel lama jika ada untuk elakkan duplikasi
+  if (presenceChannel) {
+    supabase.removeChannel(presenceChannel);
+  }
+
+  presenceChannel = supabase.channel('online-users');
+
+  presenceChannel
+    .on('presence', { event: 'sync' }, () => {
+      const state = presenceChannel.presenceState();
+      const active = [];
+      for (const id in state) {
+        if (state[id][0]?.station) {
+          active.push(state[id][0].station);
+        }
       }
-    }
-    onlineUsers.value = active; // Kemaskini senarai user yang online
-  })
-  .subscribe();
+      onlineUsers.value = active;
+    })
+    .subscribe(async (status) => {
+      // Hanya mula track selepas channel sah bersambung (SUBSCRIBED)
+      if (status === 'SUBSCRIBED' && activeStation.value && activeStation.value !== 'Admin System') {
+        await presenceChannel.track({ station: activeStation.value });
+      }
+    });
+};
 
 // TELEMETRY MANAGEMENT (REAL-TIME GPS)
 const telemetriRealtime = ref([])
@@ -531,9 +545,8 @@ const initializeDashboard = async () => {
     mapInstance.setView([4.0, 114.0], 7)
   }
 
-  if (activeStation.value && activeStation.value !== 'Admin System') {
-     presenceChannel.track({ station: activeStation.value });
-  }
+  // Jalankan presence setiap kali dashboard di-initialize (login/refresh)
+  mulakanPresence();
 
   await recallPlanDariSupabase()
 
