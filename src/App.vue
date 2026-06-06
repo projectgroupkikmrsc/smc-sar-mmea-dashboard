@@ -1566,31 +1566,50 @@ const bacaFailSAROPS = (event) => {
     // ENJIN 3: TXT (Legacy SAROPS)
     // ==========================================
     else if (extension === 'txt') {
+      // Cari baris pertama fail untuk jenis carian (contoh: PARALLEL SEARCH)
+      const barisPertama = kandunganRAW.split('\n')[0]?.trim() || 'PARALLEL SEARCH';
+      corakPenuh = barisPertama.replace('\r', '').trim();
+      
+      const matchLength = kandunganRAW.match(/(?:SEARCH AREA LENGTH|LENGTH)\s*(?:\(NM\))?\s*:\s*([\d\.]+)/i);
+      const matchWidth = kandunganRAW.match(/(?:SEARCH AREA WIDTH|WIDTH)\s*(?:\(NM\))?\s*:\s*([\d\.]+)/i);
+      const matchSpacing = kandunganRAW.match(/(?:TRACK SPACING)\s*(?:\(NM\))?\s*:\s*([\d\.]+)/i);
+      const matchSruId = kandunganRAW.match(/SRU ID\s*(?:\(TAIL\/HULL\))?\s*:\s*([^\n\r]+)/i);
+      const matchCaseName = kandunganRAW.match(/CASE NAME\s*:\s*([^\n\r]+)/i);
+
+      panjangArea = matchLength ? parseFloat(matchLength[1]) : 0;
+      lebarArea = matchWidth ? parseFloat(matchWidth[1]) : 0;
+      jarakSpacing = matchSpacing ? parseFloat(matchSpacing[1]) : 0;
+      namaSru = matchSruId ? matchSruId[1].trim() : 'BOT SAYA';
+      kawasanNama = matchCaseName ? matchCaseName[1].trim() : 'ZON INDUK';
+
       const baris = kandunganRAW.split('\n');
       let bacaWaypoints = false;
 
       baris.forEach(line => {
-        if (line.includes('CENTER')) {
-          koordinatCenter = ekstrakSatuKoordinat(line.split(':')[1]);
-        } else if (line.includes('CORNER PT #1')) {
-          pt1 = ekstrakSatuKoordinat(line.split(':')[1]);
-        } else if (line.includes('CORNER PT #2')) {
-          pt2 = ekstrakSatuKoordinat(line.split(':')[1]);
-        } else if (line.includes('CORNER PT #3')) {
-          pt3 = ekstrakSatuKoordinat(line.split(':')[1]);
-        } else if (line.includes('CORNER PT #4')) {
-          pt4 = ekstrakSatuKoordinat(line.split(':')[1]);
-        } else if (line.includes('CSP')) {
-          koordinatCSP = ekstrakSatuKoordinat(line.split(':')[1]);
+        const cleanLine = line.trim().replace('\r', '');
+        
+        if (cleanLine.includes('CENTER')) {
+          koordinatCenter = ekstrakSatuKoordinat(cleanLine.split(':')[1]);
+        } else if (cleanLine.includes('CORNER PT #1')) {
+          pt1 = ekstrakSatuKoordinat(cleanLine.split(':')[1]);
+        } else if (cleanLine.includes('CORNER PT #2')) {
+          pt2 = ekstrakSatuKoordinat(cleanLine.split(':')[1]);
+        } else if (cleanLine.includes('CORNER PT #3')) {
+          pt3 = ekstrakSatuKoordinat(cleanLine.split(':')[1]);
+        } else if (cleanLine.includes('CORNER PT #4')) {
+          pt4 = ekstrakSatuKoordinat(cleanLine.split(':')[1]);
+        } else if (cleanLine.includes('CSP')) {
+          koordinatCSP = ekstrakSatuKoordinat(cleanLine.split(':')[1]);
         }
 
-        if (line.includes('WAYPOINT LIST')) {
+        if (cleanLine.toUpperCase().includes('WAYPOINT LIST')) {
           bacaWaypoints = true;
         }
-        if (bacaWaypoints && (line.includes('WP') || line.match(/^\s*WP\s*\d+/))) {
-          const isiWp = line.split(':')[1];
-          if (isiWp) {
-            const kl = ekstrakSatuKoordinat(isiWp);
+        
+        if (bacaWaypoints && (cleanLine.startsWith('WP') || cleanLine.match(/^WP\s*\d+/))) {
+          const parts = cleanLine.split(':');
+          if (parts.length > 1) {
+            const kl = ekstrakSatuKoordinat(parts[1]);
             if (kl) garisanLaluan.push(kl);
           }
         }
@@ -1602,24 +1621,17 @@ const bacaFailSAROPS = (event) => {
 
     console.log("📊 HASIL PARSING DI WEB DASHBOARD:", { namaSru, kawasanNama, corakPenuh, panjangArea, lebarArea, jarakSpacing });
 
-    // 💾 SIMPAN DATA YANG TELAH BERSIH KE SUPABASE
+    // 💾 SIMPAN KE SUPABASE (PASTIKAN SEMUA PARAMETER DIIKAT PADAT)
     const currentActiveCaseId = Number(selectedCaseId.value);
-    if (!currentActiveCaseId) {
-      alert("⚠️ Sila pilih kes aktif terlebih dahulu sebelum muat naik fail!");
-      return;
-    }
-
-    const payloadPlan = {
-      case_id: Number(currentActiveCaseId),
+    const { error } = await supabase.from('sar_plans').insert([{
+      case_id: currentActiveCaseId,
       sru_name: namaSru,
-      pattern_name: corakPenuh.split('-')[0].trim() || 'PARALLEL',
+      pattern_name: corakPenuh,
       zone_name: kawasanNama,
       center_coord: koordinatCenter,
       csp_coord: koordinatCSP,
       corner_points: pt1 && pt2 && pt3 && pt4 ? [pt1, pt2, pt3, pt4] : null,
       sortie_waypoints: garisanLaluan,
-      
-      // Lapisan kolum gandaan selamat ke Supabase
       search_length: panjangArea,
       length: panjangArea,
       search_width: lebarArea,
@@ -1627,9 +1639,7 @@ const bacaFailSAROPS = (event) => {
       track_spacing: jarakSpacing,
       spacing: jarakSpacing,
       search_pattern: corakPenuh
-    };
-
-    const { error } = await supabase.from('sar_plans').insert([payloadPlan]);
+    }]);
 
     if (error) {
       console.error("❌ Gagal simpan ke Supabase:", error.message);
