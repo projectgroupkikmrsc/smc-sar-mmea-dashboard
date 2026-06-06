@@ -183,7 +183,7 @@
               <div v-for="(sru) in paparanSRUKesAktif" :key="sru.id" style="padding: 6px; background:#0f172a; border-radius:4px; border-left: 3px solid #10b981; border: 1px solid #334155; display:flex; justify-content:space-between; align-items:center;">
                 <div>
                   <strong style="font-size:11px; color:#fff;">{{ sru.nama }}</strong>
-                  <span style="background: #1e3a8a; color: #93c5fd; font-size: 8px; padding: 1px 3px; border-radius: 3px; margin-left: 5px; font-weight: bold;">ZON {{ sru.kawasanNama }}</span>
+                  <span style="background: #1e3a8a; color: #93c5fd; font-size: 8px; padding: 1px 3px; border-radius: 3px; margin-left: 5px; font-weight: bold;">SEARCH AREA {{ sru.kawasanNama }}</span>
                   <br/>
                   <span style="font-size:9px; color:#64748b;">PAT: {{ sru.corak }}</span>
                 </div>
@@ -419,7 +419,7 @@
             <p style="margin: 0 0 10px 0; font-size: 12px; color: #cbd5e1;">Adakah anda pasti ingin memadam unit SRU ini?</p>
             <div style="background: #0f172a; padding: 10px; border-radius: 4px;">
               <strong style="color: white; font-size: 13px; display: block;">{{ sruTargetToPadam?.nama }}</strong>
-              <span style="color: #38bdf8; font-size: 11px;">Sektor: {{ sruTargetToPadam?.kawasanNama }}</span>
+              <span style="color: #38bdf8; font-size: 11px;">Search Area: {{ sruTargetToPadam?.kawasanNama }}</span>
             </div>
           </div>
           <div style="background: #0f172a; padding: 10px 15px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #334155;">
@@ -1296,7 +1296,7 @@ const recallPlanDariSupabase = async () => {
 
         if (row.csp_coord && Array.isArray(row.csp_coord)) {
           const dotCSP = L.circleMarker(row.csp_coord, { color: '#ef4444', fillColor: '#ef4444', fillOpacity: 1, radius: 4 })
-          dotCSP.bindTooltip(`CSP ${row.zone_name} (${row.sru_name})`)
+          dotCSP.bindTooltip(`CSP SEARCH AREA ${row.zone_name} (${row.sru_name})`)
           elemenGrafikPeta.push(dotCSP)
         }
       }
@@ -1489,7 +1489,7 @@ const bacaFailSAROPS = (event) => {
 
       let namaSru = 'ASET SAR';
       let corakPenuh = 'PARALLEL';
-      let kawasanNama = 'ZON OPERASI';
+      let kawasanNama = 'SEARCH AREA';
       let panjangArea = 0;
       let lebarArea = 0;
       let jarakSpacing = 0;
@@ -1508,12 +1508,26 @@ const bacaFailSAROPS = (event) => {
       const matchCaseName = kandunganRAW.match(/CASE NAME\s*:\s*([^\n\r]+)/i);
       const matchZoneName = kandunganRAW.match(/(?:ZONE NAME|AREA NAME)\s*:\s*([^\n\r]+)/i);
 
+      // 1. Proses Data Dimensi
       panjangArea = matchLength ? parseFloat(matchLength[1]) : 0;
       lebarArea = matchWidth ? parseFloat(matchWidth[1]) : 0;
       jarakSpacing = matchSpacing ? parseFloat(matchSpacing[1]) : 0;
-      corakPenuh = matchPattern ? matchPattern[1].trim() : (kandunganRAW.split('\n')[0].trim() || 'PARALLEL');
       namaSru = matchSruId ? matchSruId[1].trim() : 'BOT SAYA';
-      kawasanNama = matchZoneName ? matchZoneName[1].trim() : (matchCaseName ? matchCaseName[1].trim() : 'ZON INDUK');
+
+      // 2. Logik Pengekstrakan Pintar: Area Name (A-1) vs Search Pattern (CREEPING LINE)
+      let zonePart = matchZoneName ? matchZoneName[1].trim() : '';
+      let patternRaw = matchPattern ? matchPattern[1].trim() : (kandunganRAW.split('\n')[0].trim() || 'PARALLEL');
+
+      // Jika pattern line ada format "A-1:CREEPING LINE", kita pecahkan
+      if (patternRaw.includes(':')) {
+        const parts = patternRaw.split(':');
+        if (!zonePart) zonePart = parts[0].trim(); // Ambil prefix sebagai area
+        patternRaw = parts[parts.length - 1].trim(); // Ambil bahagian akhir sebagai corak
+      }
+
+      // Bersihkan nama pattern (buang perkataan 'SEARCH' di hujung jika ada)
+      corakPenuh = patternRaw.replace(/\s*SEARCH$/i, '').toUpperCase();
+      kawasanNama = zonePart || (matchCaseName ? matchCaseName[1].trim() : 'SEARCH AREA');
 
       // ==========================================
       // ENJIN 1: GPX 
@@ -1622,7 +1636,7 @@ const bacaFailSAROPS = (event) => {
       await supabase.from('sar_plans').insert([{
         case_id: currentActiveCaseId,
         sru_name: namaSru,
-        pattern_name: corakPenuh.includes(':') ? corakPenuh.split(':').pop().trim() : (corakPenuh.trim() || 'PARALLEL'),
+        pattern_name: corakPenuh,
         zone_name: kawasanNama,
         center_coord: koordinatCenter,
         csp_coord: koordinatCSP,
