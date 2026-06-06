@@ -1476,6 +1476,7 @@ const bacaFailSAROPS = (event) => {
     reader.onload = async (e) => {
       const kandungan = e.target.result;
       let namaSru = 'UNKNOWN SRU', corakPenuh = '', kawasanNama = 'ZON';
+      let teksLaporan = '';
       let koordinatCenter = null, koordinatCSP = null;
       let pt1 = null, pt2 = null, pt3 = null, pt4 = null;
       let garisanLaluan = [];
@@ -1510,7 +1511,7 @@ const bacaFailSAROPS = (event) => {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(kandungan, "text/xml");
         const descriptions = xmlDoc.getElementsByTagName('description');
-        let teksLaporan = '';
+        teksLaporan = '';
         
         for (let i = 0; i < descriptions.length; i++) {
           if (descriptions[i].textContent.includes('SEARCH PATTERN NAME')) {
@@ -1588,6 +1589,18 @@ const bacaFailSAROPS = (event) => {
         return;
       }
 
+      let panjangArea = 0, lebarArea = 0, jarakSpacing = 0;
+
+      if (extension === 'txt') {
+        panjangArea = parseFloat(kandungan.match(/LENGTH\s*\(NM\)\s*:\s*([\d\.]+)/)?.[1] || 0);
+        lebarArea = parseFloat(kandungan.match(/WIDTH\s*\(NM\)\s*:\s*([\d\.]+)/)?.[1] || 0);
+        jarakSpacing = parseFloat(kandungan.match(/TRACK SPACING\s*\(NM\)\s*:\s*([\d\.]+)/)?.[1] || 0);
+      } else if (extension === 'kml') {
+        panjangArea = parseFloat(teksLaporan.match(/LENGTH\s*\(NM\)\s*:\s*([\d\.]+)/)?.[1] || 0);
+        lebarArea = parseFloat(teksLaporan.match(/WIDTH\s*\(NM\)\s*:\s*([\d\.]+)/)?.[1] || 0);
+        jarakSpacing = parseFloat(teksLaporan.match(/TRACK SPACING\s*\(NM\)\s*:\s*([\d\.]+)/)?.[1] || 0);
+      }
+
       // 💾 SIMPAN KE SUPABASE
       const { error } = await supabase.from('sar_plans').insert([{
         case_id: currentActiveCaseId, 
@@ -1597,7 +1610,15 @@ const bacaFailSAROPS = (event) => {
         center_coord: koordinatCenter,
         csp_coord: koordinatCSP, 
         corner_points: pt1 && pt2 && pt3 && pt4 ? [pt1, pt2, pt3, pt4] : null, 
-        sortie_waypoints: garisanLaluan
+        sortie_waypoints: garisanLaluan,
+
+        // 💾 KEMASKINI TAMBAHAN: Simpan data dimensi ke database
+        search_length: panjangArea,
+        length: panjangArea,
+        search_width: lebarArea,
+        width: lebarArea,
+        track_spacing: jarakSpacing,
+        spacing: jarakSpacing
       }]);
       
       if (error) {
@@ -1912,13 +1933,31 @@ watch(telemetriRealtime, () => {
 .map-toolbar button.active { background: #2563eb; border-color: #38bdf8; }
 
 /* Animasi Mentol Berkelip untuk SRU */
+/* 📡 ANIMASI RADAR PULSING UNTUK SRU DI WEB */
 .sru-marker-blink {
-  animation: sru-glow-pulse 0.8s infinite alternate;
+  animation: webSruPulse 2s infinite ease-out;
+  transform-origin: center;
+  stroke-width: 2px;
 }
 
-@keyframes sru-glow-pulse {
-  from { opacity: 0.6; filter: drop-shadow(0 0 2px #22c55e); }
-  to { opacity: 1; filter: drop-shadow(0 0 10px #22c55e); }
+@keyframes webSruPulse {
+  0% {
+    r: 4px;                  /* Saiz asal bulatan kecil */
+    stroke-opacity: 1;
+    fill-opacity: 0.9;
+    stroke: #00ffff;         /* Warna Cyan Neon */
+    filter: drop-shadow(0 0 2px #00ffff);
+  }
+  50% {
+    fill-opacity: 0.6;
+    filter: drop-shadow(0 0 15px #00ffff);
+  }
+  100% {
+    r: 18px;                 /* Ombak mengembang besar */
+    stroke-opacity: 0;       /* Pudar di penghujung */
+    fill-opacity: 0;
+    stroke: #00ffff;
+  }
 }
 
 @keyframes popupAnim { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
