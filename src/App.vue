@@ -1489,7 +1489,7 @@ const bacaFailSAROPS = (event) => {
 
       let namaSru = 'ASET SAR';
       let corakPenuh = 'PARALLEL';
-      let kawasanNama = 'SEARCH AREA';
+      let kawasanNama = 'SEARCH AREA'; // Ini akan menyimpan nama zon (cth: A-1)
       let panjangArea = 0;
       let lebarArea = 0;
       let jarakSpacing = 0;
@@ -1499,6 +1499,7 @@ const bacaFailSAROPS = (event) => {
       let garisanLaluan = [];
       let pt1 = null, pt2 = null, pt3 = null, pt4 = null;
 
+      let extractedPatternTypeRaw = 'PARALLEL SEARCH'; // Untuk menyimpan jenis corak penuh (cth: PARALLEL SEARCH)
       // Extrakt data dimensi utama (GLOBAL)
       const matchLength = kandunganRAW.match(/(?:SEARCH AREA LENGTH|LENGTH)\s*(?:\(NM\))?\s*:\s*([\d\.]+)/i);
       const matchWidth = kandunganRAW.match(/(?:SEARCH AREA WIDTH|WIDTH)\s*(?:\(NM\))?\s*:\s*([\d\.]+)/i);
@@ -1513,21 +1514,62 @@ const bacaFailSAROPS = (event) => {
       lebarArea = matchWidth ? parseFloat(matchWidth[1]) : 0;
       jarakSpacing = matchSpacing ? parseFloat(matchSpacing[1]) : 0;
       namaSru = matchSruId ? matchSruId[1].trim() : 'BOT SAYA';
+      kawasanNama = matchZoneName ? matchZoneName[1].trim() : (matchCaseName ? matchCaseName[1].trim() : 'SEARCH AREA');
 
-      // 2. Logik Pengekstrakan Pintar: Area Name (A-1) vs Search Pattern (CREEPING LINE)
-      let zonePart = matchZoneName ? matchZoneName[1].trim() : '';
-      let patternRaw = matchPattern ? matchPattern[1].trim() : (kandunganRAW.split('\n')[0].trim() || 'PARALLEL');
+      // --- Tentukan extractedPatternTypeRaw dan kemudian terbitkan corakPenuh (jenis bersih) ---
+      if (extension === 'txt') {
+        const firstLine = kandunganRAW.split('\n')[0]?.trim().replace('\r', '') || 'PARALLEL SEARCH';
+        extractedPatternTypeRaw = firstLine;
+        corakPenuh = firstLine.replace(/\s*SEARCH$/i, '').toUpperCase();
+        if (corakPenuh.startsWith('<')) corakPenuh = 'PARALLEL'; // Elakkan tag XML dari KML
+        if (corakPenuh.includes(':')) {
+          corakPenuh = corakPenuh.split(':').pop().trim();
+        }
+      } else if (extension === 'kml') {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(kandunganRAW, "text/xml");
+        const documentName = xmlDoc.getElementsByTagName("Document")[0]?.getElementsByTagName("name")[0]?.textContent || '';
+        const descriptions = xmlDoc.getElementsByTagName('description');
+        let teksLaporan = '';
+        for (let i = 0; i < descriptions.length; i++) {
+          if (descriptions[i].textContent.includes('SEARCH PATTERN NAME') || descriptions[i].textContent.includes('SEARCH AREA LENGTH')) {
+            teksLaporan = descriptions[i].textContent;
+            break;
+          }
+        }
 
-      // Jika pattern line ada format "A-1:CREEPING LINE", kita pecahkan
-      if (patternRaw.includes(':')) {
-        const parts = patternRaw.split(':');
-        if (!zonePart) zonePart = parts[0].trim(); // Ambil prefix sebagai area
-        patternRaw = parts[parts.length - 1].trim(); // Ambil bahagian akhir sebagai corak
+        const kmlMatchPattern = teksLaporan.match(/(?:SEARCH PATTERN NAME|SEARCH PATTERN)\s*:\s*([^\n\r]+)/i);
+        if (kmlMatchPattern) {
+          extractedPatternTypeRaw = kmlMatchPattern[1].trim();
+        } else if (documentName) {
+          extractedPatternTypeRaw = documentName.split('_')[0]?.trim() || 'PARALLEL SEARCH';
+        } else {
+          extractedPatternTypeRaw = 'PARALLEL SEARCH';
+        }
+
+        corakPenuh = extractedPatternTypeRaw.replace(/\s*SEARCH$/i, '').toUpperCase();
+        if (corakPenuh.startsWith('<')) corakPenuh = 'PARALLEL';
+        if (corakPenuh.includes(':')) {
+          corakPenuh = corakPenuh.split(':').pop().trim();
+        }
+
+        // ... KML coordinate extraction ...
+      } else if (extension === 'gpx') {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(kandunganRAW, "text/xml");
+        const route = xmlDoc.getElementsByTagName('rte')[0] || xmlDoc.getElementsByTagName('trk')[0];
+        if (route) {
+          const routeName = route.getElementsByTagName('name')[0]?.textContent || '';
+          if (routeName) {
+            extractedPatternTypeRaw = routeName;
+            corakPenuh = routeName.replace(/\s*SEARCH$/i, '').toUpperCase();
+            if (corakPenuh.includes(':')) {
+              corakPenuh = corakPenuh.split(':').pop().trim();
+            }
+          }
+        }
+        // ... GPX coordinate extraction ...
       }
-
-      // Bersihkan nama pattern (buang perkataan 'SEARCH' di hujung jika ada)
-      corakPenuh = patternRaw.replace(/\s*SEARCH$/i, '').toUpperCase();
-      kawasanNama = zonePart || (matchCaseName ? matchCaseName[1].trim() : 'SEARCH AREA');
 
       // ==========================================
       // ENJIN 1: GPX 
@@ -1648,7 +1690,7 @@ const bacaFailSAROPS = (event) => {
         width: lebarArea,
         track_spacing: jarakSpacing,
         spacing: jarakSpacing,
-        search_pattern: corakPenuh
+        search_pattern: extractedPatternTypeRaw // Menggunakan jenis corak penuh
       }]);
     };
 
