@@ -1463,174 +1463,189 @@ const ekstrakSatuKoordinat = (teks) => {
 };
 
 const bacaFailSAROPS = (event) => {
-  if (selectedCaseId.value === 'ALL' || !selectedCaseId.value) { 
-    alert("⚠️ Sila pilih kes spesifik dulu."); event.target.value = ''; return; 
-  }
-  const files = event.target.files; if (!files.length) return;
-  const currentActiveCaseId = Number(selectedCaseId.value);
+  const file = event.target.files[0];
+  if (!file) return;
 
-  Array.from(files).forEach((file) => {
-    const extension = file.name.split('.').pop().toLowerCase();
-    const reader = new FileReader();
+  const namaFail = file.name;
+  const extension = namaFail.split('.').pop().toLowerCase();
+  const reader = new FileReader();
 
-    reader.onload = async (e) => {
-      const kandungan = e.target.result;
-      let namaSru = 'UNKNOWN SRU', corakPenuh = '', kawasanNama = 'ZON';
-      let teksLaporan = '';
-      let koordinatCenter = null, koordinatCSP = null;
-      let pt1 = null, pt2 = null, pt3 = null, pt4 = null;
-      let garisanLaluan = [];
+  reader.onload = async (e) => {
+    const kandunganRAW = e.target.result;
+    if (!kandunganRAW) {
+      console.error("❌ Gagal membaca kandungan fail: Kosong.");
+      return;
+    }
 
-      // ==========================================
-      // ENJIN 1: GPX (GPS Exchange Format)
-      // ==========================================
-      if (extension === 'gpx') {
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(kandungan, "text/xml");
-        const route = xmlDoc.getElementsByTagName('rte')[0];
-        
-        if (route) {
-          const routeName = route.getElementsByTagName('name')[0]?.textContent || '';
-          corakPenuh = routeName;
-          namaSru = routeName.includes(':') ? routeName.split(':')[1].split('-')[0].trim() : 'UNKNOWN SRU';
-          kawasanNama = routeName.split('-')[0].replace('A-1:', '').trim() || 'ZON';
-        }
+    console.log("📄 KANDUNGAN FAIL BERJAYA DIBACA, MEMULAKAN PARSING...");
 
-        const rtepts = xmlDoc.getElementsByTagName('rtept');
-        for (let i = 0; i < rtepts.length; i++) {
-          const lat = parseFloat(rtepts[i].getAttribute('lat'));
-          const lon = parseFloat(rtepts[i].getAttribute('lon'));
-          if (i === 0) koordinatCSP = [lat, lon];
-          garisanLaluan.push([lat, lon]);
-        }
-      } 
-      // ==========================================
-      // ENJIN 2: KML (Keyhole Markup Language)
-      // ==========================================
-      else if (extension === 'kml') {
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(kandungan, "text/xml");
-        const descriptions = xmlDoc.getElementsByTagName('description');
-        teksLaporan = '';
-        
-        for (let i = 0; i < descriptions.length; i++) {
-          if (descriptions[i].textContent.includes('SEARCH PATTERN NAME')) {
-            teksLaporan = descriptions[i].textContent;
-            break;
-          }
-        }
+    let namaSru = 'ASET SAR';
+    let corakPenuh = 'PARALLEL';
+    let kawasanNama = 'ZON OPERASI';
+    let panjangArea = 0;
+    let lebarArea = 0;
+    let jarakSpacing = 0;
+    
+    let koordinatCenter = null;
+    let koordinatCSP = null;
+    let garisanLaluan = [];
+    let pt1 = null, pt2 = null, pt3 = null, pt4 = null;
 
-        if (teksLaporan) {
-          namaSru = teksLaporan.match(/SRU ID\s*\(TAIL\/HULL[^)]*\)\s*:\s*(.+)/)?.[1].trim() || 'UNKNOWN SRU';
-          corakPenuh = teksLaporan.match(/SEARCH PATTERN NAME\s*:\s*(.+)/)?.[1].trim() || '';
-          kawasanNama = teksLaporan.match(/ZONE NAME\s*:\s*(.+)/)?.[1].trim() || 
-                        (corakPenuh.includes(':') ? corakPenuh.split(':')[1].split('-')[0].trim() : corakPenuh.split('-')[0].replace('A-1:', '').trim()) || 'ZON';
-          koordinatCenter = ekstrakSatuKoordinat(teksLaporan.match(/CENTER\s*:\s*([^\n\r]+)/)?.[1]);
-          koordinatCSP = ekstrakSatuKoordinat(teksLaporan.match(/CSP\s*:\s*([^\n\r]+)/)?.[1]);
-          pt1 = ekstrakSatuKoordinat(teksLaporan.match(/CORNER PT\s*#1\s*:\s*([^\n\r]+)/)?.[1]);
-          pt2 = ekstrakSatuKoordinat(teksLaporan.match(/CORNER PT\s*#2\s*:\s*([^\n\r]+)/)?.[1]);
-          pt3 = ekstrakSatuKoordinat(teksLaporan.match(/CORNER PT\s*#3\s*:\s*([^\n\r]+)/)?.[1]);
-          pt4 = ekstrakSatuKoordinat(teksLaporan.match(/CORNER PT\s*#4\s*:\s*([^\n\r]+)/)?.[1]);
-        }
+    // 1. Ekstrak data dimensi utama dan maklumat asas menggunakan regex kebal (GLOBAL)
+    const matchLength = kandunganRAW.match(/(?:SEARCH AREA LENGTH|LENGTH)\s*(?:\(NM\))?\s*:\s*([\d\.]+)/i);
+    const matchWidth = kandunganRAW.match(/(?:SEARCH AREA WIDTH|WIDTH)\s*(?:\(NM\))?\s*:\s*([\d\.]+)/i);
+    const matchSpacing = kandunganRAW.match(/(?:TRACK SPACING)\s*(?:\(NM\))?\s*:\s*([\d\.]+)/i);
+    const matchPattern = kandunganRAW.match(/(?:SEARCH PATTERN NAME|SEARCH PATTERN)\s*:\s*([^\n\r]+)/i);
+    const matchSruId = kandunganRAW.match(/SRU ID\s*(?:\(TAIL\/HULL\))?\s*:\s*([^\n\r]+)/i);
+    const matchCaseName = kandunganRAW.match(/CASE NAME\s*:\s*([^\n\r]+)/i);
 
-        const lineStrings = xmlDoc.getElementsByTagName('LineString');
-        if (lineStrings.length > 0) {
-          const coordsText = lineStrings[0].getElementsByTagName('coordinates')[0].textContent.trim();
-          const points = coordsText.split(/\s+/);
-          points.forEach(pt => {
-            const [lon, lat] = pt.split(',');
-            if (lat && lon) garisanLaluan.push([parseFloat(lat), parseFloat(lon)]);
-          });
-        }
-      } 
-      // ==========================================
-      // ENJIN 3: TXT (Legacy SAROPS)
-      // ==========================================
-      else if (extension === 'txt') {
-        namaSru = kandungan.match(/SRU ID\s*(?:\(TAIL\/HULL[^)]*\))?\s*:\s*(.+)/i)?.[1].trim() || 'UNKNOWN SRU';
-        kawasanNama = kandungan.match(/ZONE NAME\s*:\s*(.+)/i)?.[1].trim() || 'ZON';
-        koordinatCenter = ekstrakSatuKoordinat(kandungan.match(/CENTER\s*:\s*([^\n\r]+)/)?.[1]);
-        koordinatCSP = ekstrakSatuKoordinat(kandungan.match(/CSP\s*([^\n\r]+)/)?.[1]);
-        pt1 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT\s*#1\s*:\s*([^\n\r]+)/)?.[1]);
-        pt2 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT\s*#2\s*:\s*([^\n\r]+)/)?.[1]);
-        pt3 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT\s*#3\s*:\s*([^\n\r]+)/)?.[1]);
-        pt4 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT\s*#4\s*:\s*([^\n\r]+)/)?.[1]);
+    panjangArea = matchLength ? parseFloat(matchLength[1]) : 0;
+    lebarArea = matchWidth ? parseFloat(matchWidth[1]) : 0;
+    jarakSpacing = matchSpacing ? parseFloat(matchSpacing[1]) : 0;
+    corakPenuh = matchPattern ? matchPattern[1].trim() : (kandunganRAW.split('\n')[0].trim() || 'PARALLEL');
+    namaSru = matchSruId ? matchSruId[1].trim() : 'BOT SAYA';
+    kawasanNama = matchCaseName ? matchCaseName[1].trim() : 'ZON INDUK';
 
-        let kawasanSortie = false; 
-        const barisTeks = kandungan.split('\n');
-        let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
-        
-        if (pt1 && pt2 && pt3 && pt4) {
-          [pt1, pt2, pt3, pt4].forEach(pt => {
-            if (pt[0] < minLat) minLat = pt[0]; if (pt[0] > maxLat) maxLat = pt[0];
-            if (pt[1] < minLon) minLon = pt[1]; if (pt[1] > maxLon) maxLon = pt[1];
-          });
-          minLat -= 0.1; maxLat += 0.1; minLon -= 0.1; maxLon += 0.1;
-        }
-
-        for (let baris of barisTeks) {
-          if (baris.includes('---  --------------  ----------------------') || baris.includes('---  --------------  --------------')) { kawasanSortie = true; continue; }
-          if (kawasanSortie) {
-            if (baris.trim() === '' || baris.includes('}')) continue;
-            const matchKoordinat = baris.match(/\d{2}-[\d\.]+[NS]\s+\d{3}-[\d\.]+[EW]/) || baris.match(/\d{2}-\d{2}[NS]\s+\d{3}-\d{2}[EW]/);
-            if (matchKoordinat) {
-              const titikDecimal = ekstrakSatuKoordinat(matchKoordinat[0]);
-              if (titikDecimal) {
-                if (pt1 && (titikDecimal[0] < minLat || titikDecimal[0] > maxLat || titikDecimal[1] < minLon || titikDecimal[1] > maxLon)) continue;
-                garisanLaluan.push(titikDecimal);
-              }
-            }
-          }
-        }
-      } else {
-        alert("Sila muat naik format fail .txt, .gpx, atau .kml sahaja.");
-        return;
-      }
-
-      // 🔍 ENJIN REGEX TEGAP (Boleh baca "SEARCH AREA LENGTH : 8.50 NM" atau "LENGTH (NM) : 8.50")
-      const matchLength = kandungan.match(/(?:SEARCH AREA LENGTH|LENGTH)\s*(?:\(NM\))?\s*:\s*([\d\.]+)/i);
-      const matchWidth = kandungan.match(/(?:SEARCH AREA WIDTH|WIDTH)\s*(?:\(NM\))?\s*:\s*([\d\.]+)/i);
-      const matchSpacing = kandungan.match(/(?:TRACK SPACING)\s*(?:\(NM\))?\s*:\s*([\d\.]+)/i);
-      const matchPattern = kandungan.match(/(?:SEARCH PATTERN NAME|SEARCH PATTERN)\s*:\s*([^\n\r]+)/i) || [null, kandungan.split('\n')[0]];
-
-      const panjangArea = matchLength ? parseFloat(matchLength[1]) : 0;
-      const lebarArea = matchWidth ? parseFloat(matchWidth[1]) : 0;
-      const jarakSpacing = matchSpacing ? parseFloat(matchSpacing[1]) : 0;
-      let jenisPattern = matchPattern ? matchPattern[1].trim() : 'PARALLEL';
-      if (extension === 'gpx' && corakPenuh) { // For GPX, use corakPenuh if available
-        jenisPattern = corakPenuh;
-      }
-
-      // 💾 SIMPAN KE SUPABASE
-      const { error } = await supabase.from('sar_plans').insert([{
-        case_id: currentActiveCaseId, 
-        sru_name: namaSru.trim(), 
-        pattern_name: jenisPattern.split(':')[0].trim() || 'PARALLEL', 
-        zone_name: kawasanNama,
-        center_coord: koordinatCenter,
-        csp_coord: koordinatCSP, 
-        corner_points: pt1 && pt2 && pt3 && pt4 ? [pt1, pt2, pt3, pt4] : null, 
-        sortie_waypoints: garisanLaluan,
-
-        // 💾 KEMASKINI TAMBAHAN: Simpan data dimensi ke database
-        search_length: panjangArea,
-        length: panjangArea,
-        search_width: lebarArea,
-        width: lebarArea,
-        track_spacing: jarakSpacing,
-        spacing: jarakSpacing
-        search_pattern: jenisPattern
-      }]);
+    // ==========================================
+    // ENJIN 1: GPX (GPS Exchange Format)
+    // ==========================================
+    if (extension === 'gpx') {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(kandunganRAW, "text/xml");
+      const route = xmlDoc.getElementsByTagName('rte')[0];
       
-      if (error) {
-        console.error("Gagal simpan plan:", error.message);
-        alert("Ralat Simpan Plan: " + error.message);
-      } else { 
-        await recallPlanDariSupabase(); 
+      if (route) {
+        const routeName = route.getElementsByTagName('name')[0]?.textContent || '';
+        // Override corakPenuh if GPX provides a more specific one
+        if (routeName) corakPenuh = routeName;
+        // namaSru and kawasanNama are already extracted globally, GPX might not have better info
       }
+
+      const rtepts = xmlDoc.getElementsByTagName('rtept');
+      for (let i = 0; i < rtepts.length; i++) {
+        const lat = parseFloat(rtepts[i].getAttribute('lat'));
+        const lon = parseFloat(rtepts[i].getAttribute('lon'));
+        if (i === 0) koordinatCSP = [lat, lon];
+        garisanLaluan.push([lat, lon]);
+      }
+    } 
+    // ==========================================
+    // ENJIN 2: KML (Keyhole Markup Language)
+    // ==========================================
+    else if (extension === 'kml') {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(kandunganRAW, "text/xml");
+      const descriptions = xmlDoc.getElementsByTagName('description');
+      let teksLaporan = '';
+      
+      for (let i = 0; i < descriptions.length; i++) {
+        if (descriptions[i].textContent.includes('SEARCH PATTERN NAME')) {
+          teksLaporan = descriptions[i].textContent;
+          break;
+        }
+      }
+
+      if (teksLaporan) {
+        // Koordinat bucu dan center/CSP diekstrak dari teksLaporan
+        koordinatCenter = ekstrakSatuKoordinat(teksLaporan.match(/CENTER\s*:\s*([^\n\r]+)/)?.[1]);
+        koordinatCSP = ekstrakSatuKoordinat(teksLaporan.match(/CSP\s*:\s*([^\n\r]+)/)?.[1]);
+        pt1 = ekstrakSatuKoordinat(teksLaporan.match(/CORNER PT\s*#1\s*:\s*([^\n\r]+)/)?.[1]);
+        pt2 = ekstrakSatuKoordinat(teksLaporan.match(/CORNER PT\s*#2\s*:\s*([^\n\r]+)/)?.[1]);
+        pt3 = ekstrakSatuKoordinat(teksLaporan.match(/CORNER PT\s*#3\s*:\s*([^\n\r]+)/)?.[1]);
+        pt4 = ekstrakSatuKoordinat(teksLaporan.match(/CORNER PT\s*#4\s*:\s*([^\n\r]+)/)?.[1]);
+      }
+
+      const lineStrings = xmlDoc.getElementsByTagName('LineString');
+      if (lineStrings.length > 0) {
+        const coordsText = lineStrings[0].getElementsByTagName('coordinates')[0].textContent.trim();
+        const points = coordsText.split(/\s+/);
+        points.forEach(pt => {
+          const [lon, lat] = pt.split(',');
+          if (lat && lon) garisanLaluan.push([parseFloat(lat), parseFloat(lon)]);
+        });
+      }
+    }
+    // ==========================================
+    // ENJIN 3: TXT (Legacy SAROPS)
+    // ==========================================
+    else if (extension === 'txt') {
+      // Hanya kekalkan logik pembacaan baris demi baris untuk koordinat bucu dan waypoint
+      const baris = kandunganRAW.split('\n');
+      let bacaWaypoints = false;
+
+      baris.forEach(line => {
+        if (line.includes('CENTER')) {
+          koordinatCenter = ekstrakSatuKoordinat(line.split(':')[1]);
+        } else if (line.includes('CORNER PT #1')) {
+          pt1 = ekstrakSatuKoordinat(line.split(':')[1]);
+        } else if (line.includes('CORNER PT #2')) {
+          pt2 = ekstrakSatuKoordinat(line.split(':')[1]);
+        } else if (line.includes('CORNER PT #3')) {
+          pt3 = ekstrakSatuKoordinat(line.split(':')[1]);
+        } else if (line.includes('CORNER PT #4')) {
+          pt4 = ekstrakSatuKoordinat(line.split(':')[1]);
+        } else if (line.includes('CSP')) {
+          koordinatCSP = ekstrakSatuKoordinat(line.split(':')[1]);
+        }
+
+        if (line.includes('WAYPOINT LIST')) {
+          bacaWaypoints = true;
+        }
+        if (bacaWaypoints && (line.includes('WP') || line.match(/^\s*WP\s*\d+/))) {
+          const isiWp = line.split(':')[1];
+          if (isiWp) {
+            const kl = ekstrakSatuKoordinat(isiWp);
+            if (kl) garisanLaluan.push(kl);
+          }
+        }
+      });
+    } else {
+      alert("Sila muat naik format fail .txt, .gpx, atau .kml sahaja.");
+      return;
+    }
+
+    console.log("📊 HASIL PARSING DI WEB DASHBOARD:", { namaSru, kawasanNama, corakPenuh, panjangArea, lebarArea, jarakSpacing });
+
+    // 💾 SIMPAN DATA YANG TELAH BERSIH KE SUPABASE
+    const currentActiveCaseId = Number(selectedCaseId.value);
+    if (!currentActiveCaseId) {
+      alert("⚠️ Sila pilih kes aktif terlebih dahulu sebelum memuat naik fail!");
+      return;
+    }
+
+    const payloadPlan = {
+      case_id: Number(currentActiveCaseId),
+      sru_name: namaSru,
+      pattern_name: corakPenuh.split('-')[0].trim() || 'PARALLEL',
+      zone_name: kawasanNama,
+      center_coord: koordinatCenter,
+      csp_coord: koordinatCSP,
+      corner_points: pt1 && pt2 && pt3 && pt4 ? [pt1, pt2, pt3, pt4] : null,
+      sortie_waypoints: garisanLaluan,
+      
+      // Lapisan kolum gandaan selamat ke Supabase
+      search_length: panjangArea,
+      length: panjangArea,
+      search_width: lebarArea,
+      width: lebarArea,
+      track_spacing: jarakSpacing,
+      spacing: jarakSpacing,
+      search_pattern: corakPenuh
     };
-    reader.readAsText(file);
-  });
+
+    const { error } = await supabase.from('sar_plans').insert([payloadPlan]);
+
+    if (error) {
+      console.error("❌ Gagal simpan ke Supabase:", error.message);
+      alert("Gagal simpan data pelan: " + error.message);
+    } else {
+      alert(`🎯 Pelan untuk SRU [${namaSru}] berjaya diproses dan disimpan!`);
+      // Panggil semula fungsi recall untuk kemaskini peta web secara live
+      if (typeof recallPlanDariSupabase === 'function') recallPlanDariSupabase();
+    }
+  };
+
+  reader.readAsText(file);
 };
 
 const bukaPopUpPadam = (sru) => { sruTargetToPadam.value = sru; showDeleteModal.value = true }
