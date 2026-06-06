@@ -1547,10 +1547,8 @@ const bacaFailSAROPS = (event) => {
       // ENJIN 3: TXT (Legacy SAROPS)
       // ==========================================
       else if (extension === 'txt') {
-        namaSru = kandungan.match(/SRU ID\s*\(TAIL\/HULL[^)]*\)\s*:\s*(.+)/)?.[1].trim() || 'UNKNOWN SRU';
-        corakPenuh = kandungan.match(/SEARCH PATTERN NAME\s*:\s*(.+)/)?.[1].trim() || '';
-        kawasanNama = kandungan.match(/ZONE NAME\s*:\s*(.+)/)?.[1].trim() || 
-                      (corakPenuh.includes(':') ? corakPenuh.split(':')[1].split('-')[0].trim() : corakPenuh.split('-')[0].replace('A-1:', '').trim()) || 'ZON';
+        namaSru = kandungan.match(/SRU ID\s*(?:\(TAIL\/HULL[^)]*\))?\s*:\s*(.+)/i)?.[1].trim() || 'UNKNOWN SRU';
+        kawasanNama = kandungan.match(/ZONE NAME\s*:\s*(.+)/i)?.[1].trim() || 'ZON';
         koordinatCenter = ekstrakSatuKoordinat(kandungan.match(/CENTER\s*:\s*([^\n\r]+)/)?.[1]);
         koordinatCSP = ekstrakSatuKoordinat(kandungan.match(/CSP\s*([^\n\r]+)/)?.[1]);
         pt1 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT\s*#1\s*:\s*([^\n\r]+)/)?.[1]);
@@ -1589,23 +1587,25 @@ const bacaFailSAROPS = (event) => {
         return;
       }
 
-      let panjangArea = 0, lebarArea = 0, jarakSpacing = 0;
+      // 🔍 ENJIN REGEX TEGAP (Boleh baca "SEARCH AREA LENGTH : 8.50 NM" atau "LENGTH (NM) : 8.50")
+      const matchLength = kandungan.match(/(?:SEARCH AREA LENGTH|LENGTH)\s*(?:\(NM\))?\s*:\s*([\d\.]+)/i);
+      const matchWidth = kandungan.match(/(?:SEARCH AREA WIDTH|WIDTH)\s*(?:\(NM\))?\s*:\s*([\d\.]+)/i);
+      const matchSpacing = kandungan.match(/(?:TRACK SPACING)\s*(?:\(NM\))?\s*:\s*([\d\.]+)/i);
+      const matchPattern = kandungan.match(/(?:SEARCH PATTERN NAME|SEARCH PATTERN)\s*:\s*([^\n\r]+)/i) || [null, kandungan.split('\n')[0]];
 
-      if (extension === 'txt') {
-        panjangArea = parseFloat(kandungan.match(/LENGTH\s*\(NM\)\s*:\s*([\d\.]+)/)?.[1] || 0);
-        lebarArea = parseFloat(kandungan.match(/WIDTH\s*\(NM\)\s*:\s*([\d\.]+)/)?.[1] || 0);
-        jarakSpacing = parseFloat(kandungan.match(/TRACK SPACING\s*\(NM\)\s*:\s*([\d\.]+)/)?.[1] || 0);
-      } else if (extension === 'kml') {
-        panjangArea = parseFloat(teksLaporan.match(/LENGTH\s*\(NM\)\s*:\s*([\d\.]+)/)?.[1] || 0);
-        lebarArea = parseFloat(teksLaporan.match(/WIDTH\s*\(NM\)\s*:\s*([\d\.]+)/)?.[1] || 0);
-        jarakSpacing = parseFloat(teksLaporan.match(/TRACK SPACING\s*\(NM\)\s*:\s*([\d\.]+)/)?.[1] || 0);
+      const panjangArea = matchLength ? parseFloat(matchLength[1]) : 0;
+      const lebarArea = matchWidth ? parseFloat(matchWidth[1]) : 0;
+      const jarakSpacing = matchSpacing ? parseFloat(matchSpacing[1]) : 0;
+      let jenisPattern = matchPattern ? matchPattern[1].trim() : 'PARALLEL';
+      if (extension === 'gpx' && corakPenuh) { // For GPX, use corakPenuh if available
+        jenisPattern = corakPenuh;
       }
 
       // 💾 SIMPAN KE SUPABASE
       const { error } = await supabase.from('sar_plans').insert([{
         case_id: currentActiveCaseId, 
-        sru_name: namaSru, 
-        pattern_name: corakPenuh.split('-')[0] || 'PARALLEL', 
+        sru_name: namaSru.trim(), 
+        pattern_name: jenisPattern.split(':')[0].trim() || 'PARALLEL', 
         zone_name: kawasanNama,
         center_coord: koordinatCenter,
         csp_coord: koordinatCSP, 
@@ -1619,6 +1619,7 @@ const bacaFailSAROPS = (event) => {
         width: lebarArea,
         track_spacing: jarakSpacing,
         spacing: jarakSpacing
+        search_pattern: jenisPattern
       }]);
       
       if (error) {
