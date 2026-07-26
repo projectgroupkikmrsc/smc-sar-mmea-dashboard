@@ -1,5 +1,14 @@
 <template>
   <div style="font-family: 'Segoe UI', Roboto, sans-serif; background-color: #0b0f19; min-height: 100dvh; min-width: 1280px; width: 100%; display: flex; flex-direction: column; color: #f1f5f9; overflow: auto; box-sizing: border-box; margin: 0; padding: 0;">
+
+    <!-- 🚨 EMERGENCY BROADCAST POP-UP -->
+    <div v-if="paparAmaran" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.9); z-index: 9999; display: flex; justify-content: center; align-items: center;">
+      <div style="background-color: #ff0000; padding: 40px; border-radius: 10px; border: 5px solid white; text-align: center; max-width: 600px; box-shadow: 0 0 50px red;">
+        <h1 style="color: white; font-size: 32px; font-weight: bold; margin-bottom: 20px;">🚨 ALLERT 🚨</h1>
+        <p style="color: white; font-size: 24px; margin-bottom: 30px;">{{ amaranAdmin }}</p>
+        <button @click="paparAmaran = false" style="background-color: white; color: red; font-size: 20px; font-weight: bold; padding: 15px 30px; border: none; border-radius: 5px; cursor: pointer;">SAYA MAKLUM & SAHKAN</button>
+      </div>
+    </div>
     
     <div v-if="!isLoggedIn" :style="{ flex: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundImage: `url(${bgLogin})`, backgroundSize: 'cover', backgroundPosition: 'center', position: 'relative' }">
       <div style="position: absolute; width: 100%; height: 100%; opacity: 0.03; background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px); background-size: 20px 20px;"></div>
@@ -26,6 +35,8 @@
               <option value="MRSC Kuantan">MRSC Kuantan (Wilayah Timur)</option>
               <option value="MRSC Kota Kinabalu">MRSC Kota Kinabalu (Wilayah Sabah)</option>
               <option value="MRSC Kuching">MRSC Kuching (Wilayah Sarawak)</option>
+              <option disabled>──────────────</option>
+              <option value="Admin System" style="color: #ef4444; font-weight: bold;">🛠️ Admin System (Maintenance)</option>
             </select>
           </div>
           <div>
@@ -65,99 +76,152 @@
             <span style="font-size: 11px; color: #38bdf8; font-weight: bold; letter-spacing: 0.5px;">STESEN: {{ activeStation }} // OPERATIONS OVERSEER SYSTEM</span>
           </div>
         </div>
-        <div style="display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 2px;">
-          <div style="font-size: 11px; font-weight: bold; color: #34d399; text-transform: uppercase;">
-            🟢 CONNECTED TO DATABASE
-          </div>
-          <div style="font-size: 9px; font-weight: 600; color: #38bdf8; text-transform: uppercase; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            {{ tacticalLogs[0] || 'WAITING FOR SYSTEM LOGS...' }}
+        <!-- STATUS KEHADIRAN (DIPAPARKAN KEPADA SEMUA USER) -->
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; background: rgba(15, 23, 42, 0.5); padding: 8px 16px; border-radius: 6px; border: 1px solid #1e293b; box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); justify-content: flex-end;">
+          <span style="color: #00ffcc; font-size: 10px; font-weight: 800; letter-spacing: 1px; opacity: 0.8; text-transform: uppercase;">Network Presence:</span>
+          
+          <div v-for="stesen in stesenList" :key="stesen" style="display: flex; align-items: center; gap: 6px;">
+            <!-- Lampu Indikator Hijau (Online) / Kelabu (Offline) -->
+            <span :style="{
+              width: '8px', height: '8px', borderRadius: '50%',
+              backgroundColor: onlineUsers.includes(stesen) ? '#22c55e' : '#475569',
+              boxShadow: onlineUsers.includes(stesen) ? '0 0 6px #22c55e' : 'none',
+              transition: 'all 0.3s ease'
+            }"></span>
+            <span :style="{ color: onlineUsers.includes(stesen) ? '#f8fafc' : '#94a3b8', fontSize: '10px', fontWeight: onlineUsers.includes(stesen) ? '700' : '500' }">{{ stesen }}</span>
           </div>
         </div>
       </header>
 
-      <div style="display: grid; grid-template-columns: 320px 1fr 340px; gap: 12px; padding: 12px; flex: 1; min-height: 0; box-sizing: border-box; width: 100%;">
+      <div :style="{
+        display: 'grid', gridTemplateColumns: '1fr 340px',
+        gap: '12px',
+        padding: '12px',
+        flex: '1',
+        minHeight: '0',
+        boxSizing: 'border-box',
+        width: '100%',
+      }">
         
-        <div style="display: flex; flex-direction: column; gap: 12px; min-height: 0; z-index: 20;">
-          
-          <div style="background: #1e293b; border-radius: 6px; border: 1px solid #334155; border-top: 3px solid #38bdf8; padding: 12px; flex-shrink: 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <h4 style="margin: 0; font-size: 12px; color: #38bdf8; text-transform: uppercase;">
-                🌐 INCIDENT SETUP {{ activeStation === 'MRCC Putrajaya' ? '(HQ)' : `(${activeRegion})` }}
-              </h4>
-              
-              <div style="display: flex; gap: 6px;">
-                <button @click="bukaModalLoadKes" style="background: #0284c7; color: white; border: none; padding: 3px 10px; font-size: 11px; font-weight: bold; border-radius: 4px; cursor: pointer;">
-                  📂 Load
-                </button>
-                
-                <button v-if="activeStation !== 'MRCC Putrajaya'" @click="bukaModalTambahKes" style="background: #2563eb; color: white; border: none; padding: 3px 10px; font-size: 11px; font-weight: bold; border-radius: 4px; cursor: pointer;">
-                  + New
-                </button>
-              </div>
-            </div>
-
-            <div style="margin-bottom: 8px;">
-              <label style="display: block; font-size: 10px; font-weight: bold; color: #94a3b8; margin-bottom: 4px;">SAR CASE IDENTITY</label>
-              
-              <div style="display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; width: 100%;">
-                <select v-model="selectedCaseId" @change="tukarKesTaktikal" style="width: 100%; padding: 7px; border: 1px solid #475569; border-radius: 4px; font-size: 12px; font-weight: bold; background-color: #0f172a; color: #f8fafc; height: 34px;">
-                  <option value="ALL" :disabled="activeChatTab === 'local'">
-                    {{ activeStation === 'MRCC Putrajaya' ? '🌍 [PANDANGAN GLOBAL NASIONAL - SEMUA KES]' : `🌍 [SEMUA KES AKTIF WILAYAH ${activeRegion}]` }}
-                  </option>
-                  
-                  <template v-if="activeStation === 'MRCC Putrajaya'"> 
-                    <option disabled value="">-- KES AKTIF MENYELURUH --</option>
-                    <option v-for="kes in senaraiKesAktifSahaja" :key="kes.id" :value="kes.id">
-                      [{{ kes.region }}] #{{ kes.id }} - {{ kes.case_name }}
-                    </option>
-                  </template>
-
-                  <template v-else>
-                    <option value="" disabled>-- Sila Pilih Kes Spesifik --</option>
-                    <option v-for="kes in senaraiKesAktifSahaja" :key="kes.id" :value="kes.id">
-                      #{{ kes.id }} - {{ kes.case_name }}
-                    </option>
-                  </template>
-                </select>
-
-                <button v-if="selectedCaseId !== 'ALL' && selectedCaseId !== ''" @click="bukaModalEditKes" style="background: #334155; color: #38bdf8; border: 1px solid #475569; width: 36px; height: 34px; border-radius: 4px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center;">
-                  ✏️
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div v-if="activeStation !== 'MRCC Putrajaya'" style="background: #1e293b; border-radius: 6px; border: 1px solid #334155; border-top: 3px solid #0284c7; padding: 12px; flex-shrink: 0;">
-            <h4 style="margin: 0 0 8px 0; font-size: 12px; color: #38bdf8; text-transform: uppercase;">📤 SEARCH ACTION PLAN (SAROPS)</h4>
-            <label style="border: 2px dashed #475569; border-radius: 6px; padding: 15px 10px; text-align: center; color: #94a3b8; font-size: 11px; background-color: #0f172a; display: block; cursor: pointer;">
-              <span style="font-size: 20px; display: block; margin-bottom: 5px;">📄</span>
-              Klik untuk Muat Naik Taktikal SAROPS<br>
-              <span style="color:#f59e0b; font-size:10px;" v-if="selectedCaseId === 'ALL'">⚠️ Pilih kes spesifik dulu untuk ikat file</span>
-              <span v-else style="color:#34d399; font-weight: bold;">Auto-Save diaktifkan 🟢</span>
-              <input type="file" multiple accept=".txt" @change="bacaFailSAROPS" style="display: none;" />
-            </label>
-          </div>
-
-          <div style="background: #1e293b; border-radius: 6px; border: 1px solid #334155; border-top: 3px solid #10b981; padding: 12px; flex: 1; display: flex; flex-direction: column; min-height: 0;">
-            <h4 style="margin: 0 0 10px 0; font-size: 12px; color: #34d399; text-transform: uppercase;">⚓ SRU ASSIGNMENT</h4>
-            <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; overflow-y: auto; padding-right: 2px;">
-              <div v-for="(sru) in paparanSRUKesAktif" :key="sru.id" style="padding: 6px; background:#0f172a; border-radius:4px; border-left: 3px solid #10b981; border: 1px solid #334155; display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                  <strong style="font-size:11px; color:#fff;">{{ sru.nama }}</strong>
-                  <span style="background: #1e3a8a; color: #93c5fd; font-size: 8px; padding: 1px 3px; border-radius: 3px; margin-left: 5px; font-weight: bold;">ZON {{ sru.kawasanNama }}</span>
-                  <br/>
-                  <span style="font-size:9px; color:#64748b;">PAT: {{ sru.corak }}</span>
-                </div>
-                
-                <button v-if="activeStation !== 'MRCC Putrajaya'" @click="bukaPopUpPadam(sru)" style="background: #4c1d15; color: #f87171; border: 1px solid #991b1b; padding: 4px 8px; font-size: 10px; font-weight: bold; border-radius: 4px; cursor: pointer;">🗑️ Padam</button>
-              </div>
-              <div v-if="paparanSRUKesAktif.length === 0" style="text-align: center; color: #64748b; font-size: 11px; margin-top: 20px;">📭 Tiada SRU diplot.</div>
-            </div>
-          </div>
-        </div>
-
-        <div style="background-color: #e2e8f0; border-radius: 6px; border: 1px solid #334155; position: relative; overflow: hidden; display: flex; flex-direction: column; min-height: 400px;">
+        <div style="position: relative; overflow: hidden; display: flex; flex-direction: column; min-height: 400px;">
           <div id="map" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1;"></div>
+          
+          <!-- Panel Kiri (Absolute) -->
+          <div :style="{
+            position: 'absolute', top: '0', left: '0', height: '100%',
+            transform: isLeftPanelVisible ? 'translateX(0)' : 'translateX(-100%)',
+            transition: 'transform 0.25s ease-in-out',
+            zIndex: 20, display: 'flex'
+          }">
+            <!-- Kandungan Panel Kiri -->
+            <div style="display: flex; flex-direction: column; gap: 12px; min-height: 0; width: 320px; background: rgba(11, 15, 25, 0.85); backdrop-filter: blur(8px); padding: 12px; border-right: 1px solid #334155;">
+              <!-- 🛑 SYSTEM ADMIN CONTROL (GOD MODE) -->
+              <div v-if="isAdmin" style="background: #2d0a0a; border-radius: 6px; border: 1px solid #7f1d1d; border-top: 3px solid #ef4444; padding: 12px; flex-shrink: 0; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);">
+                <h4 style="margin: 0 0 10px 0; font-size: 11px; color: #f87171; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">⚡ SYSTEM COMMAND PANEL</h4>
+                
+                <!-- Broadcast UI -->
+                <div style="margin-bottom: 12px;">
+                  <label style="display: block; font-size: 9px; font-weight: bold; color: #fca5a5; margin-bottom: 4px; text-transform: uppercase;">Global Emergency Broadcast</label>
+                  <div style="display: flex; gap: 4px;">
+                    <input type="text" v-model="mesejBroadcast" placeholder="Info ke semua stesen..." style="flex: 1; padding: 6px 10px; background: #000; border: 1px solid #7f1d1d; border-radius: 4px; color: white; font-size: 11px;" @keyup.enter="hantarBroadcast" />
+                    <button @click="hantarBroadcast" style="background: #ef4444; color: white; border: none; padding: 0 8px; border-radius: 4px; font-weight: bold; font-size: 10px; cursor: pointer;">Hantar</button>
+                  </div>
+                </div>
+
+                <!-- Data Management Tools -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                  <button @click="padamSemuaMesej" style="background: #ef4444; color: white; border: 1px solid #7f1d1d; padding: 6px; font-size: 10px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s;">🧹 Padam Semua Mesej</button>
+                  <button @click="padamSemuaPelan" style="background: #ef4444; color: white; border: 1px solid #7f1d1d; padding: 6px; font-size: 10px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s;">🗺️ Padam Semua Pelan</button>
+                </div>
+              </div>
+              
+              <div style="background: #1e293b; border-radius: 6px; border: 1px solid #334155; border-top: 3px solid #38bdf8; padding: 12px; flex-shrink: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <h4 style="margin: 0; font-size: 12px; color: #38bdf8; text-transform: uppercase;">
+                    🌐 INCIDENT SETUP {{ activeStation === 'MRCC Putrajaya' ? '(HQ)' : `(${activeRegion})` }}
+                  </h4>
+                  
+                  <div style="display: flex; gap: 6px;">
+                    <button @click="bukaModalLoadKes" style="background: #0284c7; color: white; border: none; padding: 3px 10px; font-size: 11px; font-weight: bold; border-radius: 4px; cursor: pointer;">
+                      📂 Load
+                    </button>
+                    
+                    <button v-if="activeStation !== 'MRCC Putrajaya'" @click="bukaModalTambahKes" style="background: #2563eb; color: white; border: none; padding: 3px 10px; font-size: 11px; font-weight: bold; border-radius: 4px; cursor: pointer;">
+                      + New
+                    </button>
+                  </div>
+                </div>
+
+                <div style="margin-bottom: 8px;">
+                  <label style="display: block; font-size: 10px; font-weight: bold; color: #94a3b8; margin-bottom: 4px;">SAR CASE IDENTITY</label>
+                  
+                  <div style="display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; width: 100%;">
+                    <select v-model="selectedCaseId" @change="tukarKesTaktikal" style="width: 100%; padding: 7px; border: 1px solid #475569; border-radius: 4px; font-size: 12px; font-weight: bold; background-color: #0f172a; color: #f8fafc; height: 34px;">
+                      <option value="ALL" :disabled="activeChatTab === 'local'">
+                        {{ activeStation === 'MRCC Putrajaya' ? '🌍 [PANDANGAN GLOBAL NASIONAL - SEMUA KES]' : `🌍 [SEMUA KES AKTIF WILAYAH ${activeRegion}]` }}
+                      </option>
+                      
+                      <template v-if="activeStation === 'MRCC Putrajaya'"> 
+                        <option disabled value="">-- KES AKTIF MENYELURUH --</option>
+                        <option v-for="kes in senaraiKesAktifSahaja" :key="kes.id" :value="kes.id">
+                          [{{ kes.region }}] #{{ kes.id }} - {{ kes.case_name }}
+                        </option>
+                      </template>
+
+                      <template v-else>
+                        <option value="" disabled>-- Sila Pilih Kes Spesifik --</option>
+                        <option v-for="kes in senaraiKesAktifSahaja" :key="kes.id" :value="kes.id">
+                          #{{ kes.id }} - {{ kes.case_name }}
+                        </option>
+                      </template>
+                    </select>
+
+                    <button v-if="selectedCaseId !== 'ALL' && selectedCaseId !== ''" @click="bukaModalEditKes" style="background: #334155; color: #38bdf8; border: 1px solid #475569; width: 36px; height: 34px; border-radius: 4px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center;">
+                      ✏️
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Butang Cuci Sejarah GPS (untuk semua kecuali MRCC) -->
+                <div v-if="activeStation !== 'MRCC Putrajaya'" style="margin-top: 10px;">
+                  <button @click="bukaModalPadamGPS" style="width: 100%; background: #4c1d15; color: #fca5a5; border: 1px solid #7f1d1d; padding: 6px; font-size: 10px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s;">🛰️ Padam Sejarah Pergerakan Aset</button>
+                </div>
+              </div>
+
+              <div v-if="activeStation !== 'MRCC Putrajaya'" style="background: #1e293b; border-radius: 6px; border: 1px solid #334155; border-top: 3px solid #0284c7; padding: 12px; flex-shrink: 0;">
+                <h4 style="margin: 0 0 8px 0; font-size: 12px; color: #38bdf8; text-transform: uppercase;">📤 SEARCH ACTION PLAN (SAROPS)</h4>
+                <label style="border: 2px dashed #475569; border-radius: 6px; padding: 15px 10px; text-align: center; color: #94a3b8; font-size: 11px; background-color: #0f172a; display: block; cursor: pointer;">
+                  <span style="font-size: 20px; display: block; margin-bottom: 5px;">📄</span>
+                  Klik untuk Muat Naik Taktikal SAROPS<br>
+                  <span style="color:#f59e0b; font-size:10px;" v-if="selectedCaseId === 'ALL'">⚠️ Pilih kes spesifik dulu untuk ikat file</span>
+                  <span v-else style="color:#34d399; font-weight: bold;">Auto-Save diaktifkan 🟢</span>
+                  <input type="file" multiple accept=".txt,.gpx,.kml" @change="bacaFailSAROPS" style="display: none;" />
+                </label>
+              </div>
+
+              <div style="background: #1e293b; border-radius: 6px; border: 1px solid #334155; border-top: 3px solid #10b981; padding: 12px; flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <h4 style="margin: 0 0 10px 0; font-size: 12px; color: #34d399; text-transform: uppercase;">⚓ SRU ASSIGNMENT</h4>
+                <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; overflow-y: auto; padding-right: 2px;">
+                  <div v-for="(sru) in paparanSRUKesAktif" :key="sru.id" style="padding: 6px; background:#0f172a; border-radius:4px; border-left: 3px solid #10b981; border: 1px solid #334155; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                      <strong style="font-size:11px; color:#fff;">{{ sru.nama }}</strong>
+                      <span style="background: #1e3a8a; color: #93c5fd; font-size: 8px; padding: 1px 3px; border-radius: 3px; margin-left: 5px; font-weight: bold;">ZON {{ sru.kawasanNama }}</span>
+                      <br/>
+                      <span style="font-size:9px; color:#64748b;">PAT: {{ sru.corak }}</span>
+                    </div>
+                    
+                    <button v-if="activeStation !== 'MRCC Putrajaya'" @click="bukaPopUpPadam(sru)" style="background: #4c1d15; color: #f87171; border: 1px solid #991b1b; padding: 4px 8px; font-size: 10px; font-weight: bold; border-radius: 4px; cursor: pointer;">🗑️ Padam</button>
+                  </div>
+                  <div v-if="paparanSRUKesAktif.length === 0" style="text-align: center; color: #64748b; font-size: 11px; margin-top: 20px;">📭 Tiada SRU diplot.</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Butang Toggle Panel Kiri -->
+            <div @click="isLeftPanelVisible = !isLeftPanelVisible" style="position: absolute; right: -20px; top: 50%; transform: translateY(-50%); width: 20px; height: 60px; background: #0f172a; border: 1px solid #334155; border-left: none; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 0 6px 6px 0; box-shadow: 2px 0 5px rgba(0,0,0,0.2);" title="Buka/Tutup Panel">
+              <span :style="{ color: '#94a3b8', fontSize: '14px', transform: isLeftPanelVisible ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.2s' }">◀</span>
+            </div>
+          </div>
           
           <!-- Map Drawing Toolbar -->
           <div v-if="isLoggedIn" class="map-toolbar">
@@ -180,18 +244,20 @@
                   <th style="padding-bottom: 10px; font-weight: 700;">BOAT ID</th>
                   <th style="padding-bottom: 10px; font-weight: 700;">KTS</th>
                   <th style="padding-bottom: 10px; font-weight: 700;">CRS</th>
+                  <th style="padding-bottom: 10px; font-weight: 700;">ETA</th>
                   <th style="padding-bottom: 10px; font-weight: 700;">CSP (NM)</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="tele in telemetriRealtime" :key="tele.id" style="border-bottom: 1px solid #f1f5f9;">
+                <tr v-for="tele in telemetriRealtime" :key="tele.boat_id" style="border-bottom: 1px solid #f1f5f9;">
                   <td style="padding: 10px 0; font-weight: 800; color: #0f172a;">{{ tele.boat_id }}</td>
-                  <td style="padding: 10px 0;">{{ tele.speed || '0.0' }}</td>
-                  <td style="padding: 10px 0;">{{ tele.course ? tele.course + '°' : '---' }}</td>
+                  <td style="padding: 10px 0;">{{ tele.speed ? Number(tele.speed).toFixed(1) : '0.0' }}</td>
+                  <td style="padding: 10px 0;">{{ tele.course ? Math.round(tele.course) + '°' : '---' }}</td>
+                  <td style="padding: 10px 0; color: #10b981; font-weight: 700;">{{ tele.eta || '---' }}</td>
                   <td style="padding: 10px 0; color: #2563eb; font-weight: 800;">{{ tele.csp || '0.0' }} NM</td>
                 </tr>
                 <tr v-if="telemetriRealtime.length === 0">
-                  <td colspan="4" style="padding: 30px 0; text-align: center; color: #94a3b8; font-style: italic;">No live GPS tracking active</td>
+                  <td colspan="5" style="padding: 30px 0; text-align: center; color: #94a3b8; font-style: italic;">No live GPS tracking active</td>
                 </tr>
               </tbody>
             </table>
@@ -211,31 +277,32 @@
           <div style="background: #ffffff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 16px; color: #1e293b; flex: 1; display: flex; flex-direction: column; min-height: 0; border: 1px solid #e2e8f0;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
               <h4 style="margin: 0; font-size: 13px; font-weight: 800; color: #0f172a; letter-spacing: 0.5px;">💬 SRU COMMUNICATION</h4>
-              <span v-if="globalUnreadCount > 0 && activeChatTab !== 'global'" style="background: #fee2e2; color: #ef4444; font-size: 9px; font-weight: 900; padding: 3px 8px; border-radius: 20px; border: 1px solid #fecaca;">
-                {{ globalUnreadCount }} UNREAD
-              </span>
             </div>
 
             <!-- TABS SYSTEM: GLOBAL & LOCAL -->
             <div style="display: flex; gap: 8px; margin-bottom: 15px;">
               <button 
                 @click="activeChatTab = 'global'; langganMesejRealtimeSupabase()" 
-                :style="{
+                :style="[tabButtonStyle, {
                   background: activeChatTab === 'global' ? '#2563eb' : '#e2e8f0',
                   color: activeChatTab === 'global' ? 'white' : '#64748b',
-                  border: activeChatTab === 'global' ? 'none' : '1px solid #e2e8f0',
-                  padding: '7px 16px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', cursor: 'pointer', transition: '0.2s', flex: '1'
-                }"
-              >Global</button>
+                  flex: '1'
+                }]"
+              >
+                Global
+                <span v-if="globalUnreadCount > 0" class="badge-unread">{{ globalUnreadCount }}</span>
+              </button>
               <button 
                 @click="activeChatTab = 'local'; langganMesejRealtimeSupabase()" 
-                :style="{
+                :style="[tabButtonStyle, {
                   background: activeChatTab === 'local' ? '#2563eb' : '#e2e8f0',
                   color: activeChatTab === 'local' ? 'white' : '#64748b',
-                  border: activeChatTab === 'local' ? 'none' : '1px solid #e2e8f0',
-                  padding: '7px 16px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', cursor: 'pointer', transition: '0.2s', flex: '1'
-                }"
-              >Local</button>
+                  flex: '1'
+                }]"
+              >
+                Incident Message
+                <span v-if="localUnreadCount > 0" class="badge-unread">{{ localUnreadCount }}</span>
+              </button>
             </div>
 
             <div class="chat-messages-container" style="flex: 1; background-color: #f8fafc; border-radius: 8px; border: 1px solid #f1f5f9; padding: 12px; font-size: 11px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
@@ -244,18 +311,21 @@
                    <span style="font-weight: 800; color: #334155; font-size: 10px;">{{ msg.sender }}</span>
                    <span style="color: #94a3b8; font-size: 9px; margin-left: 8px;">{{ formatMasaChat(msg.created_at) }}</span>
                  </div>
-                 <div :style="{
-                   background: msg.sender === activeStation ? '#e0f2fe' : '#ffffff',
-                   padding: '10px 14px',
-                   borderRadius: msg.sender === activeStation ? '12px 0 12px 12px' : '0 12px 12px 12px',
-                   border: msg.sender === activeStation ? '1px solid #90cdf4' : '1px solid #e2e8f0',
-                   color: '#1e293b',
-                   lineHeight: '1.5',
-                   boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                   maxWidth: '80%',
-                   'align-self': msg.sender === activeStation ? 'flex-end' : 'flex-start'
-                 }">
-                   {{ msg.message }}
+                 <div style="display: flex; gap: 8px; align-items: center;" :style="{ 'flex-direction': msg.sender === activeStation ? 'row-reverse' : 'row', 'align-self': msg.sender === activeStation ? 'flex-end' : 'flex-start' }">
+                   <div :style="{
+                     background: msg.sender === activeStation ? '#e0f2fe' : '#ffffff',
+                     padding: '10px 14px',
+                     borderRadius: msg.sender === activeStation ? '12px 0 12px 12px' : '0 12px 12px 12px',
+                     border: msg.sender === activeStation ? '1px solid #90cdf4' : '1px solid #e2e8f0',
+                     color: '#1e293b',
+                     lineHeight: '1.5',
+                     boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                     maxWidth: '100%'
+                   }">
+                     {{ msg.message }}
+                   </div>
+                   <!-- Individual message delete for Admin -->
+                   <button v-if="isAdmin" @click="padamMesej(msg.id)" title="Padam Mesej" style="background: none; border: none; cursor: pointer; font-size: 11px; opacity: 0.4;">🗑️</button>
                  </div>
                </div>
             </div>
@@ -265,6 +335,8 @@
                 type="text" 
                 v-model="inputMesejBaru" 
                 @keyup.enter="hantarMesejChatSupabase"
+                @focus="isInputFocused = true; bersihkanUnread()"
+                @blur="isInputFocused = false"
                 :placeholder="localChatPlaceholder" 
                 :disabled="isLocalChatInputDisabled"
                 style="width: 100%; border: 1px solid #e2e8f0; padding: 12px 45px 12px 18px; border-radius: 25px; font-size: 11px; outline: none; transition: 0.2s;"
@@ -384,6 +456,34 @@
         </div>
       </div>
 
+      <!-- MODAL BARU: Padam Sejarah GPS -->
+      <div v-if="showPadamGpsModal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(2, 6, 23, 0.75); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+        <div style="background: #ffffff; width: 520px; border-radius: 8px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); overflow: hidden; color: #1e293b; font-family: sans-serif; animation: popupAnim 0.15s ease-out;">
+          <div style="padding: 15px 20px 5px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0;">
+            <h2 style="margin: 0; font-size: 16px; font-weight: bold; color: #ef4444;">🛰️ Padam Sejarah Pergerakan Aset</h2>
+            <button @click="showPadamGpsModal = false" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #64748b;">×</button>
+          </div>
+          
+          <div style="padding: 15px; max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+            <p style="margin: 0; font-size: 11px; color: #64748b; font-style: italic;">Pilih aset yang sejarah pergerakannya ingin dipadamkan secara kekal:</p>
+            
+            <div v-if="senaraiTrekUntukPadam.length === 0" style="text-align: center; color: #94a3b8; font-size: 12px; padding: 20px;">Tiada sejarah pergerakan direkodkan.</div>
+
+            <div v-for="trek in senaraiTrekUntukPadam" :key="trek.sru_id + '-' + trek.case_id" @click="sahkanPadamTrekSpesifik(trek.sru_id, trek.case_id)" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; background: #f8fafc; transition: 0.2s; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong style="font-size: 12px; color: #0f172a;">Aset: {{ trek.sru_id }}</strong><br>
+                <span style="font-size: 10px; color: #64748b;">Kes: #{{ trek.case_id }} - {{ dapatkanNamaKes(trek.case_id) }}</span>
+              </div>
+              <span style="background: #7f1d1d; color: #fee2e2; padding: 2px 6px; font-size: 9px; font-weight: bold; border-radius: 3px;">HAPUSKAN</span>
+            </div>
+          </div>
+
+          <div style="background: #f1f5f9; padding: 12px; display: flex; justify-content: flex-end;">
+            <button @click="showPadamGpsModal = false" style="background: white; border: 1px solid #cbd5e1; padding: 6px 14px; font-size: 12px; font-weight: bold; border-radius: 6px; cursor: pointer;">Tutup</button>
+          </div>
+        </div>
+      </div>
+
     </div>
 
   </div>
@@ -394,7 +494,7 @@ import { ref, onMounted, computed, nextTick, watch } from 'vue'
 import { supabase } from './supabase'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import logoBclbb from './assets/logo_bclbb.jpg'
+import logoBclbb from './assets/logo_bclbb.png'
 import bgLogin from './assets/background_1st_page.jpg'
 
 // PAGE 1 MANAGEMENT
@@ -402,23 +502,197 @@ const isLoggedIn = ref(false)
 const loginError = ref('')
 const activeStation = ref('')
 const activeRegion = ref('')
+const isAdmin = computed(() => activeStation.value === 'Admin System');
 const loginForm = ref({ stationId: '', password: '' })
+
+// God Mode State
+const amaranAdmin = ref('')
+const paparAmaran = ref(false)
+const mesejBroadcast = ref('')
+
+// User Presence Logic
+const onlineUsers = ref([]);
+const stesenList = [
+  'MRCC Putrajaya',
+  'MRSC Langkawi',
+  'MRSC Klang',
+  'MRSC Johor Baharu',
+  'MRSC Kuantan',
+  'MRSC Kota Kinabalu',
+  'MRSC Kuching'
+];
+
+let presenceChannel = null;
+
+// Fungsi untuk memulakan sistem penjejakan status online
+const mulakanPresence = () => {
+  // Buang channel lama jika ada untuk elakkan duplikasi
+  if (presenceChannel) {
+    supabase.removeChannel(presenceChannel);
+  }
+
+  presenceChannel = supabase.channel('online-users');
+
+  presenceChannel
+    .on('presence', { event: 'sync' }, () => {
+      const state = presenceChannel.presenceState();
+      const active = [];
+      for (const id in state) {
+        if (state[id][0]?.station) {
+          active.push(state[id][0].station);
+        }
+      }
+      onlineUsers.value = active;
+    })
+    .subscribe(async (status) => {
+      // Hanya mula track selepas channel sah bersambung (SUBSCRIBED)
+      if (status === 'SUBSCRIBED' && activeStation.value && activeStation.value !== 'Admin System') {
+        await presenceChannel.track({ station: activeStation.value });
+      }
+    });
+};
 
 // TELEMETRY MANAGEMENT (REAL-TIME GPS)
 const telemetriRealtime = ref([])
+const sruMarkersOnMap = ref({});
+const sruCspLinesOnMap = ref({}); // Simpan garisan ke CSP
+const sruReachedCsp = ref({}); // Tanda jika SRU sudah sampai ke CSP
+
+const kemaskiniMarkerSRUAtasPeta = () => {
+  if (!mapInstance) return; // Pastikan peta web dah sedia
+
+  // Ambil senarai ID bot yang aktif sedia ada dalam telemetry
+  const sruAktifId = telemetriRealtime.value.map(t => t.id);
+
+  // A: Bersihkan marker jika bot tersebut dah offline / padam tracking
+  Object.keys(sruMarkersOnMap.value).forEach(idKey => {
+    if (!sruAktifId.includes(Number(idKey))) {
+      mapInstance.removeLayer(sruMarkersOnMap.value[idKey]);
+      delete sruMarkersOnMap.value[idKey];
+      
+      if (sruCspLinesOnMap.value[idKey]) {
+        mapInstance.removeLayer(sruCspLinesOnMap.value[idKey]);
+        delete sruCspLinesOnMap.value[idKey];
+      }
+      delete sruReachedCsp.value[idKey];
+    }
+  });
+
+  // B: Lukis atau gerakkan marker bot yang sedang memancarkan isyarat GPS
+  telemetriRealtime.value.forEach(tele => {
+    const lat = parseFloat(tele.latitude);
+    const lng = parseFloat(tele.longitude);
+
+    if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
+
+    const currentPos = L.latLng(lat, lng);
+
+    if (!sruMarkersOnMap.value[tele.id]) {
+      // Jika bot baru online, cipta icon bot taktikal (Kecil & Berkelip Neon)
+      const newMarker = L.circleMarker(currentPos, {
+        color: '#22c55e', // Hijau Neon
+        fillColor: '#22c55e',
+        fillOpacity: 1,
+        radius: 5, // Saiz dikecilkan
+        weight: 2,
+        className: 'sru-marker-blink' // Class untuk animasi CSS
+      }).addTo(mapInstance);
+
+      // Ikat maklumat kelajuan dan arah bot pada popup di skrin komander
+      newMarker.bindTooltip(`🛥️ SRU LIVE: ${tele.boat_id}<br>⚡ Kelajuan: ${tele.speed || '0.0'} kts<br>🧭 Arah: ${tele.course ? tele.course + '°' : '---'}`, { permanent: false, direction: 'top' });
+
+      sruMarkersOnMap.value[tele.id] = newMarker;
+    } else {
+      // Jika bot sedia ada bergerak, cuma kemaskini koordinat dan kandungan tooltip secara live
+      sruMarkersOnMap.value[tele.id].setLatLng(currentPos);
+      sruMarkersOnMap.value[tele.id].setTooltipContent(`🛥️ SRU LIVE: ${tele.boat_id}<br>⚡ Kelajuan: ${tele.speed || '0.0'} kts<br>🧭 Arah: ${tele.course ? tele.course + '°' : '---'}`);
+    }
+
+    // LOGIK BARU: Garisan putus-putus ke CSP
+    const sruPlan = senaraiMasterSRU.value.find(s => s.nama === tele.boat_id);
+    if (sruPlan && sruPlan.csp_coord) {
+      const cspPos = L.latLng(sruPlan.csp_coord[0], sruPlan.csp_coord[1]);
+      const distMeters = currentPos.distanceTo(cspPos);
+      const distNM = distMeters / 1852; // Tukar meter ke Nautical Miles
+
+      // ✅ KIRA ETA & CSP UNTUK PAPARAN JADUAL
+      tele.csp = distNM.toFixed(2);
+      const speedKts = parseFloat(tele.speed) || 0;
+      if (distNM < 0.1) {
+        tele.eta = "ARRIVED";
+      } else if (speedKts > 0.5) {
+        const totalMinutes = Math.round((distNM / speedKts) * 60);
+        if (totalMinutes < 60) {
+          tele.eta = totalMinutes + "m";
+        } else {
+          const h = Math.floor(totalMinutes / 60);
+          const m = totalMinutes % 60;
+          tele.eta = `${h}j ${m}m`;
+        }
+      } else {
+        tele.eta = "STATIONARY";
+      }
+
+      // Jika jarak kurang dari 0.2 NM, tanda sebagai "sampai"
+      if (distNM < 0.2) {
+        sruReachedCsp.value[tele.id] = true;
+      }
+
+      // Hanya lukis garisan jika belum sampai buat pertama kali
+      if (!sruReachedCsp.value[tele.id]) {
+        if (!sruCspLinesOnMap.value[tele.id]) {
+          sruCspLinesOnMap.value[tele.id] = L.polyline([currentPos, cspPos], {
+            color: '#000000', // Warna Hitam untuk lebih jelas
+            weight: 2,
+            dashArray: '5, 10',
+            opacity: 0.7,
+            interactive: false
+          }).addTo(mapInstance);
+        } else {
+          sruCspLinesOnMap.value[tele.id].setLatLngs([currentPos, cspPos]);
+        }
+      } else if (sruCspLinesOnMap.value[tele.id]) {
+        // Hilangkan garisan jika sudah sampai
+        mapInstance.removeLayer(sruCspLinesOnMap.value[tele.id]);
+        delete sruCspLinesOnMap.value[tele.id];
+      }
+    } else {
+      tele.csp = '---';
+      tele.eta = '---';
+    }
+  });
+};
 
 const langganTelemetriMMEA = () => {
   supabase
     .channel('sru_status_live')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'sru_telemetry' }, payload => {
+      
       if (payload.eventType === 'INSERT') {
-        telemetriRealtime.value.push(payload.new)
-      } else if (payload.eventType === 'UPDATE') {
-        const idx = telemetriRealtime.value.findIndex(t => t.id === payload.new.id)
-        if (idx !== -1) telemetriRealtime.value[idx] = payload.new
-      } else if (payload.eventType === 'DELETE') {
-        telemetriRealtime.value = telemetriRealtime.value.filter(t => t.id !== payload.old.id)
+        const idx = telemetriRealtime.value.findIndex(t => t.boat_id === payload.new.boat_id);
+        if (idx !== -1) {
+          // JIKA DAH WUJUD: Kemaskini data sedia ada tanpa runtuhkan elemen jadual
+          telemetriRealtime.value[idx] = payload.new;
+        } else {
+          // JIKA BARU ONLINE: Masukkan baris baru
+          telemetriRealtime.value.push(payload.new);
+        }
+      } 
+      
+      else if (payload.eventType === 'UPDATE') {
+        const idx = telemetriRealtime.value.findIndex(t => t.boat_id === payload.new.boat_id);
+        if (idx !== -1) {
+          telemetriRealtime.value[idx] = payload.new;
+        } else {
+          telemetriRealtime.value.push(payload.new);
+        }
+      } 
+      
+      else if (payload.eventType === 'DELETE') {
+        // Buang dari jadual jika bot henti penjejakan
+        telemetriRealtime.value = telemetriRealtime.value.filter(t => t.boat_id !== payload.old.boat_id);
       }
+      
     })
     .subscribe()
 }
@@ -430,16 +704,74 @@ const pemetaanStesenRegion = {
   'MRSC Johor Baharu': 'SELATAN',
   'MRSC Kuantan': 'TIMUR',
   'MRSC Kota Kinabalu': 'SABAH',
-  'MRSC Kuching': 'SARAWAK'
+  'MRSC Kuching': 'SARAWAK',
+  'Admin System': 'GLOBAL'
 }
+
+watch(() => loginForm.value.stationId, (val) => {
+  if (val === 'Admin System') {
+    const pw = prompt("Sila masukkan kata laluan Admin:");
+    if (pw !== "zulhairy87") {
+      alert("Kata laluan salah!");
+      loginForm.value.stationId = '';
+    }
+  }
+});
+
+const hantarNotifikasiTaktikal = (sender, msg, isEmergency = false) => {
+  // 1. Mainkan Bunyi (Cara paling berkesan untuk bilik operasi)
+  // Bunyi Ping untuk mesej biasa, bunyi Siren untuk Emergency Broadcast
+  const soundUrl = isEmergency 
+    ? 'https://assets.mixkit.co/active_storage/sfx/951/951-preview.mp3' 
+    : 'https://assets.mixkit.co/active_storage/sfx/2357/2357-preview.mp3';
+  
+  const audio = new Audio(soundUrl);
+  audio.play().catch(() => {
+    console.warn("Autoplay bunyi disekat oleh pelayar. Sila berinteraksi dengan peta dahulu.");
+  });
+
+  // 2. Notifikasi Desktop (Jika tab disorokkan/minimized)
+  if (window.Notification && Notification.permission === 'granted' && document.hidden) {
+    new Notification(`Mesej SAR: ${sender}`, {
+      body: msg,
+      icon: logoBclbb
+    });
+  }
+};
 
 const initializeDashboard = async () => {
   await nextTick()
+
+  // Minta kebenaran notifikasi desktop sebaik sahaja masuk dashboard
+  if (window.Notification && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+
   await tarikDataKes()
   initMap()
+
+  if (isAdmin.value && mapInstance) {
+    mapInstance.setView([4.5, 109.0], 5)
+  } else if ((activeStation.value === 'MRSC Kota Kinabalu' || activeStation.value === 'MRSC Kuching') && mapInstance) {
+    mapInstance.setView([4.0, 114.0], 7)
+  }
+
+  // Jalankan presence setiap kali dashboard di-initialize (login/refresh)
+  mulakanPresence();
+
   await recallPlanDariSupabase()
+
+  // Pastikan 3 baris ini ada di sini:
   langganTelemetriMMEA()
   langganMesejRealtimeSupabase()
+  if (typeof langganPerubahanPelanSupabase === 'function') {
+    langganPerubahanPelanSupabase()
+  }
+
+  // Langganan baru untuk sejarah trek GPS
+  if (typeof langganSejarahTrekSupabase === 'function') {
+    langganSejarahTrekSupabase();
+  }
 }
 
 onMounted(async () => {
@@ -492,9 +824,13 @@ const senaraiMesejChat = ref([])
 const inputMesejBaru = ref('')
 const activeChatTab = ref('global')
 const globalUnreadCount = ref(0) // New ref for unread count
+const localUnreadCount = ref(0)
+const isInputFocused = ref(false)
 const paparkanTrekLaluan = ref(false)
 let chatChannelSubscription = null
+const isLeftPanelVisible = ref(true)
 let mapInstance = null
+let trackHistoryPolylines = {}; // Simpan rujukan kepada setiap polyline SRU
 let trackHistoryLayer = null
 
 const warnaSearchArea = ['#dc2626', '#2563eb', '#9333ea', '#ea580c', '#16a34a']
@@ -503,6 +839,10 @@ const showDeleteModal = ref(false)
 const showAddCaseModal = ref(false)
 const showEditCaseModal = ref(false)
 const showLoadCaseModal = ref(false)
+const showPadamGpsModal = ref(false)
+const senaraiTrekUntukPadam = ref([])
+
+const dapatkanNamaKes = (id) => senaraiKes.value.find(k => k.id === id)?.case_name || 'Tidak Diketahui';
 
 const sruTargetToPadam = ref(null)
 const formAddKes = ref({ case_no: '', case_name: '', search_object: '' })
@@ -527,7 +867,11 @@ const senaraiKesAktifSahaja = computed(() => {
 const isGlobalChatActive = computed(() => activeChatTab.value === 'global');
 const isLocalChatActive = computed(() => activeChatTab.value === 'local');
 const isCaseSelected = computed(() => selectedCaseId.value !== 'ALL');
-const isCaseOwnedByStation = computed(() => selectedCase.value && selectedCase.value.region === activeRegion.value);
+const isCaseOwnedByStation = computed(() => {
+  if (selectedCaseId.value === 'ALL') return true; // Benarkan pelepasan penuh jika pilih ALL
+  if (activeStation.value === 'MRCC Putrajaya') return true;
+  return selectedCase.value && selectedCase.value.region === activeRegion.value;
+});
 
 const selectedCase = computed(() => {
   if (selectedCaseId.value === 'ALL') return null
@@ -544,24 +888,22 @@ const paparanSRUKesAktif = computed(() => {
 
 const filteredMesejChat = computed(() => {
   if (isGlobalChatActive.value) {
-    // Reset unread count when global tab is active
-    globalUnreadCount.value = 0;
     return senaraiMesejChat.value.filter(m => m.chat_type === 'global' && m.case_id === null);
   } else if (isLocalChatActive.value) {
-    if (!isCaseSelected.value) return []; // No messages if no case selected
-
-    // Security Access Control: Only display messages if the case belongs to the active station's region
-    if (!isCaseOwnedByStation.value) {
-      return []; // Access restricted, return empty array
+    // Jika pilih ALL, paparkan semua mesej local yang terikat di bawah wilayah stesen tersebut
+    if (selectedCaseId.value === 'ALL') {
+      const idKesWilayah = senaraiKesAktifSahaja.value.map(k => k.id)
+      return senaraiMesejChat.value.filter(m => m.chat_type === 'local' && idKesWilayah.includes(m.case_id));
     }
-
-    return senaraiMesejChat.value.filter(m =>
-      m.chat_type === 'local' &&
-      m.case_id === Number(selectedCaseId.value)
-    );
+    return senaraiMesejChat.value.filter(m => m.chat_type === 'local' && m.case_id === Number(selectedCaseId.value));
   }
-  return []; // Default empty
+  return [];
 })
+
+const bersihkanUnread = () => {
+  if (activeChatTab.value === 'global') globalUnreadCount.value = 0
+  else localUnreadCount.value = 0
+}
 
 const isLocalChatInputDisabled = computed(() => {
   if (isLocalChatActive.value) {
@@ -574,13 +916,24 @@ const isLocalChatInputDisabled = computed(() => {
 
 const localChatPlaceholder = computed(() => {
   if (isLocalChatActive.value && !isCaseSelected.value) {
-    return '⚠️ SILA PILIH KES SPESIFIK UNTUK MULA BERSEMBANG...'
+    return '⚠️ SILA PILIH KES SPESIFIK UNTUK MULA MENGHANTAR MESEJ INSIDEN...'
   }
   if (isLocalChatInputDisabled.value) {
-    return '🔒 CHANNEL LOCKED: STATIONS OUTSIDE THIS INCIDENT AREA CANNOT TRANSMIT.'
+    return '🔒 CHANNEL LOCKED: ANDA TIDAK MEMPUNYAI AKSES UNTUK TRANSMIT KE INSIDEN INI.'
   }
   return 'Transmit message...'
 })
+
+const tabButtonStyle = {
+  border: 'none',
+  padding: '7px 16px',
+  borderRadius: '6px',
+  fontSize: '11px',
+  fontWeight: '800',
+  cursor: 'pointer',
+  transition: '0.2s',
+  position: 'relative'
+}
 
 const initMap = () => {
   const mapContainer = document.getElementById('map')
@@ -593,31 +946,91 @@ const initMap = () => {
     attribution: '&copy; OpenStreetMap' 
   }).addTo(mapInstance)
 
-  // 1. LIVE COORDINATE TRACKER (PENJEJAK LATLONG TETIKUS - BOTTOM LEFT)
-  const MousePositionControl = L.Control.extend({
-    options: { position: 'bottomleft' },
-    onAdd: function () {
-      this._container = L.DomUtil.create('div', 'leaflet-control-mouseposition');
-      this._container.style.backgroundColor = '#0f172a';
-      this._container.style.border = '1px solid #38bdf8';
-      this._container.style.color = '#38bdf8';
-      this._container.style.fontFamily = 'monospace';
-      this._container.style.fontSize = '11px';
-      this._container.style.fontWeight = 'bold';
-      this._container.style.padding = '4px 8px';
-      this._container.style.borderRadius = '4px';
-      this._container.innerHTML = '🌐 LAT: 0.0000 | LON: 0.0000';
-      return this._container;
-    },
-    updateCoords: function (latlng) {
-      this._container.innerHTML = `🌐 LAT: ${latlng.lat.toFixed(4)} | LON: ${latlng.lng.toFixed(4)}`;
-    }
-  });
-  const mousePos = new MousePositionControl();
-  mousePos.addTo(mapInstance);
-  mapInstance.on('mousemove', (e) => mousePos.updateCoords(e.latlng));
+  // ============================================================================
+  // 1. LAYER MSRR (Sempadan Carian & Menyelamat) - Menggunakan Polyline
+  // ============================================================================
 
-  // 2. TACTICAL SEARCH & COORDINATE GO-TO BAR (TOP RIGHT)
+  // MSRR Selat Melaka & Laut China Selatan (Semenanjung)
+  const msrrBarat = L.polyline([
+    [6.4333, 100.1333], // Titik 1: Sempadan Pantai Barat (Perlis/Thailand)
+    [6.5000, 99.0000],  // Titik 2
+    [7.2500, 98.0000],  // Titik 3
+    [10.0000, 96.5000], // Titik 4
+    [10.0000, 94.4167], // Titik 5
+    [6.0000, 94.4167],  // Titik 6
+    [6.0000, 97.5000],  // Titik 7
+    [1.6500, 102.1667], // Titik 8
+    [1.2833, 103.6000], // Titik 9
+    [1.2833, 103.6333], // Titik 10
+    [1.2833, 104.0833], // Titik 11
+    [1.2167, 104.2167], // Titik 12
+    [1.3833, 104.5000], // Titik 13
+    [1.9000, 105.0833], // Titik 14
+    [4.0000, 105.0833], // Titik 15
+    [6.0000, 106.0000], // Titik 16
+    [7.8333, 103.0500], // Titik 17
+    [6.2333, 102.1167]  // Titik 18: Sempadan Pantai Timur (Kelantan/Thailand)
+  ], { color: 'blue', weight: 2, dashArray: '5, 5' }).bindPopup("MSRR: Selat Melaka / Semenanjung");
+
+  // MSRR Laut China Selatan & Laut Sulu (Borneo)
+  const msrrTimur = L.polyline([
+    [2.0833, 109.6467], // Titik 19: Pantai Tg. Datu (Sempadan Sarawak)
+    [6.2833, 109.6333], // Titik 20
+    [10.0000, 111.5000], // Titik 21
+    [10.0000, 116.0000], // Titik 22
+    [7.6833, 116.0000], // Titik 23
+    [7.6833, 118.0000], // Titik 24
+    [6.3333, 118.0000], // Titik 25
+    [6.0000, 118.3333], // Titik 26
+    [6.0000, 118.9167], // Titik 27
+    [5.2667, 119.5833], // Titik 28
+    [4.7000, 119.0000], // Titik 29
+    [4.4000, 119.0000], // Titik 30
+    [4.4000, 120.0000], // Titik 31
+    [4.0000, 120.0000], // Titik 32
+    [4.0000, 118.0000], // Titik 33
+    [4.1667, 117.8995]  // Titik 34: Pantai Sempadan Sabah/Kalimantan
+  ], { color: 'red', weight: 2, dashArray: '5, 5' }).bindPopup("MSRR: Borneo (Sabah & Sarawak)");
+
+  const layerMSRR = L.layerGroup([msrrBarat, msrrTimur]);
+
+  // ============================================================================
+  // 2. LAYER SEMPADAN PELANTAR BENUA MALAYSIA (1979)
+  // ============================================================================
+
+  // Titik 1 - 47 (Semenanjung)
+  const pelantarSemenanjung = L.polyline([
+    [6.3067, 99.4583], [6.2717, 99.3217], [6.3000, 99.1117], [5.9500, 98.0250],
+    [5.4500, 98.2917], [4.9283, 98.6917], [3.9933, 99.7267], [3.7900, 99.9167],
+    [2.8600, 101.0033], [2.6917, 101.2017], [2.2567, 101.7750], [1.9200, 102.2233],
+    [1.6867, 102.5833], [1.3250, 103.0650], [1.2500, 103.3800], [1.2242, 103.4467],
+    [1.1408, 103.5342], [1.1833, 103.5700], [1.2525, 103.5825], [1.2728, 103.6230],
+    [1.2642, 103.6017], [1.2938, 104.1250], [1.2903, 104.0483], [1.2883, 104.0767],
+    [1.2700, 104.1183], [1.2608, 104.1578], [1.2275, 104.2112], [1.2700, 104.2692],
+    [1.2750, 104.3300], [1.2592, 104.4742], [1.2825, 104.4888], [1.3983, 104.4917],
+    [1.6333, 104.8833], [1.9067, 105.0867], [2.3750, 105.0200], [2.9200, 104.8583],
+    [3.8350, 104.7750], [4.0500, 104.8650], [5.0783, 105.4800], [5.6767, 105.7850],
+    [6.0967, 105.8200], [6.8042, 104.5000], [7.8167, 103.0417], [7.1708, 102.4833],
+    [6.8333, 102.3533], [6.4633, 102.1600], [6.4583, 102.1667]
+  ], { color: 'green', weight: 3, opacity: 0.8 });
+
+  // Titik 48 - 84 (Borneo: Sabah & Sarawak)
+  const pelantarBorneo = L.polyline([
+    [2.0833, 109.6467], [3.0000, 109.9083], [4.6667, 110.0333], [5.5200, 109.9833],
+    [6.3033, 109.6433], [7.1292, 111.5667], [8.3958, 112.5125], [8.7403, 113.2708],
+    [8.5653, 113.6500], [8.4070, 113.7958], [8.4072, 113.8737], [8.3958, 114.3305],
+    [8.5042, 114.4862], [8.4695, 114.8353], [8.9167, 115.1763], [8.8180, 115.6458],
+    [8.3320, 115.9013], [8.0250, 116.0583], [7.6667, 116.0000], [7.6667, 117.0000],
+    [7.4125, 117.4250], [6.8667, 117.9667], [6.2833, 117.9667], [6.0000, 118.3333],
+    [6.0000, 118.8333], [5.2667, 119.5833], [4.7000, 119.0000], [4.3833, 119.0000],
+    [4.3833, 120.0000], [3.0458, 120.2625], [3.0250, 119.8833], [3.1000, 118.9583],
+    [3.1445, 118.7695], [3.6500, 118.3667], [4.0608, 118.0183], [4.1333, 117.9492],
+    [4.1667, 117.8995]
+  ], { color: 'green', weight: 3, opacity: 0.8 });
+
+  const layerPelantarBenua = L.layerGroup([pelantarSemenanjung, pelantarBorneo]);
+
+  // 1. TACTICAL SEARCH & COORDINATE GO-TO BAR (Diletakkan dahulu supaya berada di kiri dalam susunan flex)
   let searchMarker = null;
   const SearchGoToControl = L.Control.extend({
     options: { position: 'topright' },
@@ -643,7 +1056,6 @@ const initMap = () => {
           const val = input.value.trim();
           if (!val) return;
           let lat, lon;
-          // Logik A: Input Koordinat (Format: "3.85, 103.5" atau "3.85 103.5")
           const coordRegex = /^([-+]?\d*\.?\d+)[,\s]+([-+]?\d*\.?\d+)$/;
           const match = val.match(coordRegex);
 
@@ -651,7 +1063,6 @@ const initMap = () => {
             lat = parseFloat(match[1]); lon = parseFloat(match[2]);
             executeGoTo(lat, lon);
           } else {
-            // Logik B: Geocoding Nama Tempat (Nominatim API)
             try {
               const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}`);
               const data = await res.json();
@@ -674,10 +1085,59 @@ const initMap = () => {
   });
   new SearchGoToControl().addTo(mapInstance);
 
+  // ============================================================================
+  // 3. GABUNGKAN KE DALAM LAYER CONTROL
+  // ============================================================================
+  if (window.mapLayerControl) {
+    mapInstance.removeControl(window.mapLayerControl);
+  }
+
+  window.mapLayerControl = L.control.layers(null, {
+    "Sempadan MSRR Malaysia": layerMSRR,
+    "Sempadan Pelantar Benua (1979)": layerPelantarBenua
+  }, { position: 'topright' }).addTo(mapInstance);
+
+  // 3. LIVE COORDINATE TRACKER (PENJEJAK LATLONG TETIKUS - BOTTOM LEFT)
+  const toDDM = (deg, isLng) => {
+    const absDeg = Math.abs(deg);
+    const degrees = Math.floor(absDeg);
+    const minutes = ((absDeg - degrees) * 60).toFixed(2);
+    
+    const direction = isLng ? (deg >= 0 ? 'E' : 'W') : (deg >= 0 ? 'N' : 'S');
+    const degreesStr = String(degrees).padStart(isLng ? 3 : 2, '0');
+    const minutesStr = parseFloat(minutes) < 10 ? '0' + minutes : minutes;
+
+    return `${degreesStr}° ${minutesStr}' ${direction}`;
+  };
+
+  const MousePositionControl = L.Control.extend({
+    options: { position: 'bottomright' },
+    onAdd: function () {
+      this._container = L.DomUtil.create('div', 'leaflet-control-mouseposition');
+      this._container.style.backgroundColor = '#0f172a';
+      this._container.style.border = '1px solid #38bdf8';
+      this._container.style.color = '#38bdf8';
+      this._container.style.fontFamily = 'monospace';
+      this._container.style.fontSize = '11px';
+      this._container.style.fontWeight = 'bold';
+      this._container.style.padding = '4px 8px';
+      this._container.style.borderRadius = '4px';
+      this._container.innerHTML = '🌐 LAT: 0.0000 | LON: 0.0000';
+      return this._container;
+    },
+    updateCoords: function (latlng) {
+      this._container.innerHTML = `🌐 ${toDDM(latlng.lat, false)} | ${toDDM(latlng.lng, true)}`;
+    }
+  });
+  const mousePos = new MousePositionControl();
+  mousePos.addTo(mapInstance);
+  mapInstance.on('mousemove', (e) => mousePos.updateCoords(e.latlng));
+
   toolsLayer.clearLayers()
   toolsLayer.addTo(mapInstance)
   tempDrawingLayer.addTo(mapInstance) // Add temporary drawing layer
   trackHistoryLayer = L.layerGroup().addTo(mapInstance) // Initialize track history layer
+  trackHistoryPolylines = {}; // Reset rujukan polyline
 
   // Event for Drawing Tools
   mapInstance.on('click', (e) => {
@@ -916,25 +1376,34 @@ const recallPlanDariSupabase = async () => {
       const warnaTema = warnaSearchArea[senaraiMasterSRU.value.length % warnaSearchArea.length]
 
       if (mapInstance) {
-        if (row.corner_points && row.corner_points.length >= 4) {
-          const pt1 = row.corner_points[0], pt2 = row.corner_points[1], pt3 = row.corner_points[2], pt4 = row.corner_points[3]
-          const kotakPoly = L.polyline([pt1, pt2, pt3, pt4, pt1], { color: warnaTema, weight: 2, opacity: 0.9 }).addTo(mapInstance)
+        // Pastikan corner_points wujud dan lengkap
+        if (row.corner_points && Array.isArray(row.corner_points) && row.corner_points.length >= 4) {
+          const pts = row.corner_points.filter(p => p !== null)
+          if (pts.length >= 4) {
+            const kotakPoly = L.polyline([...pts, pts[0]], { color: warnaTema, weight: 2, opacity: 0.9 })
+            elemenGrafikPeta.push(kotakPoly)
+          }
+        }
 
-          elemenGrafikPeta.push(kotakPoly)
+        // Pastikan sortie_waypoints wujud
+        if (row.sortie_waypoints && Array.isArray(row.sortie_waypoints) && row.sortie_waypoints.length > 0) {
+          const waypoints = row.sortie_waypoints.filter(p => p !== null)
+          if (waypoints.length > 0) {
+            const laluanPoly = L.polyline(waypoints, { color: warnaTema, weight: 2, dashArray: '5, 5', opacity: 0.85 })
+            elemenGrafikPeta.push(laluanPoly)
+          }
         }
-        if (row.sortie_waypoints && row.sortie_waypoints.length > 0) {
-          const laluanPoly = L.polyline(row.sortie_waypoints, { color: warnaTema, weight: 2, dashArray: '5, 5', opacity: 0.85 }).addTo(mapInstance)
-          elemenGrafikPeta.push(laluanPoly)
-        }
-        if (row.csp_coord) {
-          const dotCSP = L.circleMarker(row.csp_coord, { color: '#ef4444', fillColor: '#ef4444', fillOpacity: 1, radius: 4 }).addTo(mapInstance)
+
+        if (row.csp_coord && Array.isArray(row.csp_coord)) {
+          const dotCSP = L.circleMarker(row.csp_coord, { color: '#ef4444', fillColor: '#ef4444', fillOpacity: 1, radius: 4 })
           dotCSP.bindTooltip(`CSP ${row.zone_name} (${row.sru_name})`)
           elemenGrafikPeta.push(dotCSP)
         }
       }
 
       senaraiMasterSRU.value.push({
-        id: row.id, caseId: row.case_id, nama: row.sru_name, corak: row.pattern_name, kawasanNama: row.zone_name, grafikPeta: elemenGrafikPeta
+        id: row.id, caseId: row.case_id, nama: row.sru_name, corak: row.pattern_name, kawasanNama: row.zone_name, grafikPeta: elemenGrafikPeta,
+        csp_coord: row.csp_coord
       })
     })
     tukarKesTaktikal()
@@ -965,13 +1434,15 @@ const bukaModalTambahKes = () => {
 }
 
 const simpanKesBaruSupabase = async () => {
-  if (!formAddKes.value.case_name.trim()) { alert("Sila masukkan Nama Kes!"); return }
+  if (!formAddKes.value.case_name.trim() || !formAddKes.value.case_no.trim()) { alert("Sila masukkan No Kes dan Nama Kes!"); return }
   
   try {
     const { data, error } = await supabase
       .from('sar_incidents')
       .insert([{ 
-        case_name: formAddKes.value.case_name.toUpperCase().trim(), 
+        case_no: formAddKes.value.case_no.trim(),
+        case_name: formAddKes.value.case_name.trim(), 
+        search_object: formAddKes.value.search_object.trim(),
         status: 'active', 
         region: activeRegion.value 
       }])
@@ -1032,10 +1503,7 @@ const padamKesDariSupabase = async () => {
 
 const tukarKesTaktikal = () => {
   if (!mapInstance) return
-
-  supabase.removeAllChannels()
-  langganTelemetriMMEA()
-  langganMesejRealtimeSupabase()
+  trackHistoryPolylines = {}; // Reset polylines apabila tukar kes
 
   // Clear existing map graphics
   senaraiMasterSRU.value.forEach(sru => {
@@ -1060,85 +1528,242 @@ const tukarKesTaktikal = () => {
     mapInstance.fitBounds(combinedBounds, { padding: [50, 50] })
   } else { 
     // Default view if no graphics or bounds
-    if (activeStation.value === 'MRCC Putrajaya') mapInstance.setView([4.2, 109.5], 5)
-    else mapInstance.setView([3.85, 103.5], 7) 
+    if (activeStation.value === 'MRCC Putrajaya' || isAdmin.value) {
+      mapInstance.setView([4.5, 109.0], 5)
+    } else if (activeStation.value === 'MRSC Kota Kinabalu' || activeStation.value === 'MRSC Kuching') {
+      mapInstance.setView([4.0, 114.0], 7)
+    } else {
+      mapInstance.setView([3.85, 103.5], 7)
+    }
   }
-
-  // Refresh track history if enabled
-  if (paparkanTrekLaluan.value) loadTrackHistory()
 
   mapInstance.invalidateSize() // Ensure map renders correctly after case change
 }
 
 const ekstrakSatuKoordinat = (teks) => {
-  // Regex for parsing coordinates
-  if (!teks) return null
-  const match = teks.match(/(\d{2})-(\d{2}\.\d{3})([NS])\s+(\d{3})-(\d{2}\.\d{3})([EW])/)
-  if (!match) return null
-  let lat = parseInt(match[1]) + parseFloat(match[2]) / 60; if (match[3] === 'S') lat = -lat
-  let lon = parseInt(match[4]) + parseFloat(match[5]) / 60; if (match[6] === 'W') lon = -lon
-  return [lat, lon]
-}
+  if (!teks) return null;
+  
+  // 1. Cuba potong format perpuluhan minit (Gaya PC Lama)
+  const matchPC = teks.match(/(\d{1,2})-([\d\.]+)([NS])\s+(\d{1,3})-([\d\.]+)([EW])/);
+  // 2. Cuba potong format bulat darjah-minit (Gaya Web Baharu)
+  const matchWeb = teks.match(/(\d{1,2})-(\d{2})([NS])\s+(\d{1,3})-(\d{2})([EW])/);
+
+  if (matchPC) {
+    let lat = parseInt(matchPC[1]) + parseFloat(matchPC[2]) / 60; if (matchPC[3] === 'S') lat = -lat;
+    let lon = parseInt(matchPC[4]) + parseFloat(matchPC[5]) / 60; if (matchPC[6] === 'W') lon = -lon;
+    return [lat, lon];
+  } else if (matchWeb) {
+    let lat = parseInt(matchWeb[1]) + parseInt(matchWeb[2]) / 60; if (matchWeb[3] === 'S') lat = -lat;
+    let lon = parseInt(matchWeb[4]) + parseInt(matchWeb[2]) / 60; if (matchWeb[6] === 'W') lon = -lon;
+    return [lat, lon];
+  }
+  return null;
+};
 
 const bacaFailSAROPS = (event) => {
-  // SAROPS file parsing logic
-  if (selectedCaseId.value === 'ALL' || !selectedCaseId.value) { alert("⚠️ Sila pilih kes spesifik dulu."); event.target.value = ''; return }
-  const files = event.target.files; if (!files.length) return
-  const currentActiveCaseId = Number(selectedCaseId.value)
+  // 🛡️ Guard: Mesti pilih incident spesifik dlu (Bukan 'ALL' atau kosong)
+  if (!selectedCaseId.value || selectedCaseId.value === 'ALL') {
+    alert("⚠️ Sila pilih satu kes (incident) spesifik terlebih dahulu sebelum memuat naik fail SAROPS!");
+    event.target.value = ''; // Reset input fail
+    return;
+  }
 
-  Array.from(files).forEach((file) => {
-    const reader = new FileReader()
+  const files = event.target.files;
+  if (!files || files.length === 0) return;
+
+  console.log(`📂 MENERIMA ${files.length} FAIL UNTUK DIPROSES...`);
+  const currentActiveCaseId = Number(selectedCaseId.value);
+
+  // Loop melalui setiap fail yang dimuat naik serentak
+  for (let f = 0; f < files.length; f++) {
+    const file = files[f];
+    const namaFail = file.name;
+    const extension = namaFail.split('.').pop().toLowerCase();
+    const reader = new FileReader();
+
     reader.onload = async (e) => {
-      const kandungan = e.target.result
-      const namaSru = kandungan.match(/SRU ID \(TAIL\/HULL\)\s*:\s*(.+)/)?.[1].trim() || 'UNKNOWN SRU'
-      const corakPenuh = kandungan.match(/SEARCH PATTERN NAME\s*:\s*(.+)/)?.[1].trim() || ''
-      const koordinatCenter = ekstrakSatuKoordinat(kandungan.match(/CENTER\s*:\s*([^\n\r]+)/)?.[1])
-      let kawasanNama = corakPenuh ? corakPenuh.split(':')[0].trim() : 'ZON'
-      const koordinatCSP = ekstrakSatuKoordinat(kandungan.match(/CSP\s*:\s*([^\n\r]+)/)?.[1])
-      const pt1 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT #1\s*:\s*([^\n\r]+)/)?.[1])
-      const pt2 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT #2\s*:\s*([^\n\r]+)/)?.[1])
-      const pt3 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT #3\s*:\s*([^\n\r]+)/)?.[1])
-      const pt4 = ekstrakSatuKoordinat(kandungan.match(/CORNER PT #4\s*:\s*([^\n\r]+)/)?.[1])
+      const kandunganRAW = e.target.result;
+      if (!kandunganRAW) return;
 
-      const garisanLaluan = []
-      let kawasanSortie = false; const barisTeks = kandungan.split('\n')
-      let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180
-      if (pt1 && pt2 && pt3 && pt4) {
-        [pt1, pt2, pt3, pt4].forEach(pt => {
-          if (pt[0] < minLat) minLat = pt[0]; if (pt[0] > maxLat) maxLat = pt[0]
-          if (pt[1] < minLon) minLon = pt[1]; if (pt[1] > maxLon) maxLon = pt[1]
-        })
-        minLat -= 0.1; maxLat += 0.1; minLon -= 0.1; maxLon += 0.1
+      let namaSru = 'ASET SAR';
+      let corakPenuh = 'PARALLEL';
+      let kawasanNama = 'ZON OPERASI';
+      let panjangArea = 0;
+      let lebarArea = 0;
+      let jarakSpacing = 0;
+      let kelajuanCarian = 0;
+      
+      let koordinatCenter = null;
+      let koordinatCSP = null;
+      let garisanLaluan = [];
+      let pt1 = null, pt2 = null, pt3 = null, pt4 = null;
+
+      // Extrakt data dimensi utama (GLOBAL)
+      const matchLength = kandunganRAW.match(/(?:SEARCH AREA LENGTH|LENGTH)[^\d\n]*?([\d\.]+)/i);
+      const matchWidth = kandunganRAW.match(/(?:SEARCH AREA WIDTH|WIDTH)[^\d\n]*?([\d\.]+)/i);
+      const matchSpacing = kandunganRAW.match(/(?:TRACK SPACING)[^\d\n]*?([\d\.]+)/i);
+      const matchSpeed = kandunganRAW.match(/SEARCH\s*SPEED[^\d\n]*?([\d\.]+)/i) || kandunganRAW.match(/SPEED[^\d\n]*?([\d\.]+)/i);
+      const matchPattern = kandunganRAW.match(/(?:SEARCH PATTERN NAME|SEARCH PATTERN)\s*:\s*([^\n\r]+)/i);
+      const matchSruId = kandunganRAW.match(/SRU ID\s*(?:\(TAIL\/HULL\))?\s*:\s*([^\n\r]+)/i);
+      const matchCaseName = kandunganRAW.match(/CASE NAME\s*:\s*([^\n\r]+)/i);
+      const matchZoneName = kandunganRAW.match(/(?:ZONE NAME|AREA NAME)\s*:\s*([^\n\r]+)/i);
+
+      panjangArea = matchLength ? parseFloat(matchLength[1]) : 0;
+      lebarArea = matchWidth ? parseFloat(matchWidth[1]) : 0;
+      jarakSpacing = matchSpacing ? parseFloat(matchSpacing[1]) : 0;
+      kelajuanCarian = matchSpeed ? parseFloat(matchSpeed[1]) : 0;
+
+      // Ambil baris pertama fail (selalunya jenis pattern dalam TXT)
+      const barisPertama = kandunganRAW.split('\n')[0]?.trim().replace('\r', '') || '';
+
+      // 2. Logik Pengekstrakan Pintar: Identity (A-1) vs Type (PARALLEL SEARCH)
+      let extractedZone = matchZoneName ? matchZoneName[1].trim() : '';
+      let patternField = matchPattern ? matchPattern[1].trim() : '';
+      let typeCandidate = (extension === 'txt') ? barisPertama : (patternField || 'PARALLEL');
+
+      if (patternField.includes(':')) {
+        const parts = patternField.split(':');
+        if (!extractedZone) extractedZone = parts[0].trim();
+        typeCandidate = parts.slice(1).join(':').trim();
       }
 
-      for (let baris of barisTeks) {
-        if (baris.includes('---  --------------  ----------------------')) { kawasanSortie = true; continue }
-        if (kawasanSortie) {
-          if (baris.trim() === '' || baris.includes('}')) continue
-          const matchKoordinat = baris.match(/\d{2}-\d{2}\.\d{3}[NS]\s+\d{3}-\d{2}\.\d{3}[EW]/)
-          if (matchKoordinat) {
-            const titikDecimal = ekstrakSatuKoordinat(matchKoordinat[0])
-            if (titikDecimal) {
-              if (pt1 && (titikDecimal[0] < minLat || titikDecimal[0] > maxLat || titikDecimal[1] < minLon || titikDecimal[1] > maxLon)) continue
-              garisanLaluan.push(titikDecimal)
-            }
+      corakPenuh = typeCandidate || 'PARALLEL';
+      namaSru = matchSruId ? matchSruId[1].trim() : 'BOT SAYA';
+      kawasanNama = extractedZone || patternField || (matchCaseName ? matchCaseName[1].trim() : 'SEARCH AREA');
+
+      // ==========================================
+      // ENJIN 1: GPX 
+      // ==========================================
+      if (extension === 'gpx') {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(kandunganRAW, "text/xml");
+        
+        // Cari Route (rte) atau Track (trk) untuk plot pattern
+        const route = xmlDoc.getElementsByTagName('rte')[0] || xmlDoc.getElementsByTagName('trk')[0];
+        if (route) {
+          const routeName = route.getElementsByTagName('name')[0]?.textContent || '';
+          if (routeName) corakPenuh = routeName;
+        }
+        
+        const points = xmlDoc.querySelectorAll('rtept, trkpt');
+        for (let i = 0; i < points.length; i++) {
+          const lat = parseFloat(points[i].getAttribute('lat'));
+          const lon = parseFloat(points[i].getAttribute('lon'));
+          if (i === 0) koordinatCSP = [lat, lon];
+          garisanLaluan.push([lat, lon]);
+        }
+      } 
+      // ==========================================
+      // ENJIN 2: KML
+      // ==========================================
+      else if (extension === 'kml') {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(kandunganRAW, "text/xml");
+        const descriptions = xmlDoc.getElementsByTagName('description');
+        let teksLaporan = '';
+        
+        for (let i = 0; i < descriptions.length; i++) {
+          if (descriptions[i].textContent.includes('SEARCH PATTERN NAME') || descriptions[i].textContent.includes('SEARCH AREA LENGTH')) {
+            teksLaporan = descriptions[i].textContent;
+            break;
           }
         }
+
+        if (teksLaporan) {
+          koordinatCenter = ekstrakSatuKoordinat(teksLaporan.match(/CENTER\s*:\s*([^\n\r]+)/)?.[1]);
+          koordinatCSP = ekstrakSatuKoordinat(teksLaporan.match(/CSP\s*:\s*([^\n\r]+)/)?.[1]);
+          pt1 = ekstrakSatuKoordinat(teksLaporan.match(/CORNER PT\s*#1\s*:\s*([^\n\r]+)/)?.[1]);
+          pt2 = ekstrakSatuKoordinat(teksLaporan.match(/CORNER PT\s*#2\s*:\s*([^\n\r]+)/)?.[1]);
+          pt3 = ekstrakSatuKoordinat(teksLaporan.match(/CORNER PT\s*#3\s*:\s*([^\n\r]+)/)?.[1]);
+          pt4 = ekstrakSatuKoordinat(teksLaporan.match(/CORNER PT\s*#4\s*:\s*([^\n\r]+)/)?.[1]);
+        }
+
+        const lineStrings = xmlDoc.getElementsByTagName('LineString');
+      // Ambil laluan terpanjang (biasanya Search Pattern mempunyai lebih banyak point berbanding kotak area)
+      for (let j = 0; j < lineStrings.length; j++) {
+        const coordsText = lineStrings[j].getElementsByTagName('coordinates')[0]?.textContent?.trim();
+        if (!coordsText) continue;
+        const points = coordsText.split(/\s+/);
+        const path = [];
+        points.forEach(pt => {
+          const [lon, lat] = pt.split(',');
+          if (lat && lon) path.push([parseFloat(lat), parseFloat(lon)]);
+        });
+        if (path.length > garisanLaluan.length) {
+          garisanLaluan = path;
+        }
+      }
+      }
+      // ==========================================
+      // ENJIN 3: TXT (Flexible Sortie Key)
+      // ==========================================
+      else if (extension === 'txt') {
+        const baris = kandunganRAW.split('\n');
+        let bacaWaypoints = false;
+
+        baris.forEach(line => {
+          const cleanLine = line.trim().replace('\r', '');
+
+          if (cleanLine.includes('CENTER')) {
+            koordinatCenter = ekstrakSatuKoordinat(cleanLine);
+          } else if (cleanLine.includes('CORNER PT #1')) {
+            pt1 = ekstrakSatuKoordinat(cleanLine);
+          } else if (cleanLine.includes('CORNER PT #2')) {
+            pt2 = ekstrakSatuKoordinat(cleanLine);
+          } else if (cleanLine.includes('CORNER PT #3')) {
+            pt3 = ekstrakSatuKoordinat(cleanLine);
+          } else if (cleanLine.includes('CORNER PT #4')) {
+            pt4 = ekstrakSatuKoordinat(cleanLine);
+          } else if (cleanLine.includes('CSP')) {
+            koordinatCSP = ekstrakSatuKoordinat(cleanLine);
+          }
+
+          // 🔍 PENGESAHAN KUNCI FLEKSIBEL (Boleh baca WAYPOINT LIST atau SORTIE DETAILS)
+          if (cleanLine.toUpperCase().includes('WAYPOINT LIST') || cleanLine.toUpperCase().includes('SORTIE DETAILS')) {
+            bacaWaypoints = true;
+          }
+
+          // Baca talian jika mod waypoint aktif dan baris bermula dengan nombor indeks (contoh: 1, 2, atau WP)
+          if (bacaWaypoints) {
+            const matchWpBaris = cleanLine.match(/^\s*(\d+|WP\s*\d+)\s+/i);
+            if (matchWpBaris) {
+              // Ekstrak koordinat terus dari baris tanpa perlu split pada simbol ':'
+              const kl = ekstrakSatuKoordinat(cleanLine);
+              if (kl) garisanLaluan.push(kl);
+            }
+          }
+        });
       }
 
-      const { error } = await supabase.from('sar_plans').insert([{
-        case_id: currentActiveCaseId, sru_name: namaSru, pattern_name: corakPenuh.split('-')[0], zone_name: kawasanNama,
+      await supabase.from('sar_plans').insert([{
+        case_id: currentActiveCaseId,
+        sru_name: namaSru,
+        pattern_name: corakPenuh.replace(/\s*SEARCH$/i, '').trim() || 'PARALLEL',
+        zone_name: kawasanNama,
         center_coord: koordinatCenter,
-        csp_coord: koordinatCSP, corner_points: [pt1, pt2, pt3, pt4], sortie_waypoints: garisanLaluan
-      }])
-      if (error) {
-        console.error("Gagal simpan plan:", error.message)
-        alert("Ralat Simpan Plan: " + error.message)
-      } else { await recallPlanDariSupabase() }
-    }
-    reader.readAsText(file)
-  })
-}
+        csp_coord: koordinatCSP,
+        corner_points: pt1 && pt2 && pt3 && pt4 ? [pt1, pt2, pt3, pt4] : null,
+        sortie_waypoints: garisanLaluan,
+        search_length: panjangArea,
+        length: panjangArea,
+        search_width: lebarArea,
+        width: lebarArea,
+        track_spacing: jarakSpacing,
+        spacing: jarakSpacing,
+        search_speed: kelajuanCarian,
+        search_pattern: corakPenuh
+      }]);
+    };
+
+    reader.readAsText(file);
+  }
+
+  // Beri maklum balas ringkas setelah gelung selesai diletakkan dalam stack
+  setTimeout(() => {
+    alert("🎯 Kesemua fail SAROPS berjaya diproses serentak!");
+    if (typeof recallPlanDariSupabase === 'function') recallPlanDariSupabase();
+  }, 800);
+};
 
 const bukaPopUpPadam = (sru) => { sruTargetToPadam.value = sru; showDeleteModal.value = true }
 const sahkanPadamSRU = async () => {
@@ -1151,11 +1776,11 @@ const sahkanPadamSRU = async () => {
 }
 
 const tarikDataKes = async () => {
-  let query = supabase.from('sar_incidents').select('*')
-  if (activeStation.value !== 'MRCC Putrajaya') {
-    query = query.eq('region', activeRegion.value)
-  }
   try {
+    let query = supabase.from('sar_incidents').select('*')
+    if (activeStation.value !== 'MRCC Putrajaya') {
+      query = query.eq('region', activeRegion.value)
+    }
     const { data, error } = await query.order('id', { ascending: false })
     if (!error) senaraiKes.value = data || []
   } catch (err) {
@@ -1184,7 +1809,7 @@ const putuskanLanggananChatRealtime = () => {
 }
 
 const fetchChatMessages = async () => {
-  let query = supabase.from('sar_messages').select('*').order('created_at', { ascending: true })
+  let query = supabase.from('sar_messages').select('*')
   
   if (activeChatTab.value === 'global') {
     query = query.eq('chat_type', 'global').is('case_id', null)
@@ -1202,7 +1827,7 @@ const fetchChatMessages = async () => {
     }
   }
 
-  const { data, error } = await query
+  const { data, error } = await query.order('created_at', { ascending: true })
   if (!error) {
     senaraiMesejChat.value = data
     autoScrollChatKeBawah()
@@ -1211,55 +1836,109 @@ const fetchChatMessages = async () => {
 
 // 📡 FUNGSI RADAR REALTIME (MENANGKAP MESEJ DARI STESEN LAIN)
 const langganMesejRealtimeSupabase = () => {
-  putuskanLanggananChatRealtime() // Bersihkan frekuensi lama
-  fetchChatMessages() // Ambil sejarah mesej lama
+  if (chatChannelSubscription) {
+    supabase.removeChannel(chatChannelSubscription)
+  }
+  
+  fetchChatMessages() 
 
-  chatChannelSubscription = supabase.channel('sar_messages_realtime')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sar_messages' }, (payload) => {
-      const r = payload.new
-      
-      // 🛡️ PENAPIS PENTING: Abaikan mesej pantulan dari diri sendiri sebab kita dah lukis awal
-      if (r.sender === activeStation.value) return
+  // ✅ KOD BARU: Guna nama channel raw untuk bypass proxy Cloudflare
+  chatChannelSubscription = supabase.channel('sar-messages-live')
+    .on(
+      'postgres_changes', 
+      { event: '*', schema: 'public', table: 'sar_messages' }, 
+      (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const r = payload.new
+          if (r.sender === 'PENGUMUMAN ADMIN') {
+            amaranAdmin.value = r.message
+            paparAmaran.value = true
+            hantarNotifikasiTaktikal('ADMIN', r.message, true);
+          } else {
+            if (r.sender === activeStation.value) return
+            if (!senaraiMesejChat.value.some(m => m.id === r.id)) senaraiMesejChat.value.push(r)
+            
+            // Notifikasi untuk setiap mesej masuk dari stesen lain
+            hantarNotifikasiTaktikal(r.sender, r.message, false);
 
-      // Logik Penapisan Taktikal Tab
-      if (r.chat_type === 'global' && r.case_id === null) {
-        // Global message received
-        if (isGlobalChatActive.value) {
-          senaraiMesejChat.value.push(r);
-        } else {
-          globalUnreadCount.value++; // Increment unread count if global tab is not active
-        }
-      } else {
-        // Local message received
-        if (!isCaseSelected.value) return; // No local messages for 'ALL' view
-
-        // Security Access Control: Only push if the case belongs to the active station's region AND local tab is active
-        if (!isCaseOwnedByStation.value || !isLocalChatActive.value) {
-          return; // Access restricted or not in local tab, do not push
-        }
-
-        if (r.chat_type === 'local' && r.case_id === Number(selectedCaseId.value)) { // Ensure case ID matches
-          senaraiMesejChat.value.push(r)
+            if (r.chat_type === 'global') {
+              if (!(isGlobalChatActive.value && isInputFocused.value)) globalUnreadCount.value++
+            } else if (r.chat_type === 'local') {
+              // HANYA NOTIFY jika kes tersebut milik wilayah stesen ini atau stesen adalah HQ
+              const isRelevantCase = senaraiKes.value.some(k => k.id === r.case_id);
+              if (isRelevantCase && (selectedCaseId.value === 'ALL' || r.case_id === Number(selectedCaseId.value))) {
+                if (!(isLocalChatActive.value && isInputFocused.value)) {
+                  localUnreadCount.value++
+                }
+              }
+            }
+            autoScrollChatKeBawah()
+          }
+        } else if (payload.eventType === 'DELETE') {
+          senaraiMesejChat.value = senaraiMesejChat.value.filter(m => m.id !== payload.old.id)
         }
       }
-      
-      autoScrollChatKeBawah()
-    }).subscribe()
+    )
+    .subscribe((status) => {
+      console.log("📡 Status Langganan Chat:", status)
+    })
 }
 
+// 📡 FUNGSI RADAR REALTIME (MENANGKAP PERUBAHAN PELAN SAR DARI STESEN LAIN)
+const langganPerubahanPelanSupabase = () => {
+  supabase.channel('sar-plans-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'sar_plans' }, async (payload) => {
+      console.log("🔄 Perubahan Aset (SRU) dikesan dari pelayan lain!");
+      await recallPlanDariSupabase();
+    })
+    .subscribe();
+};
+
+// 📡 FUNGSI RADAR REALTIME (MENANGKAP PERUBAHAN SEJARAH TREK DARI STESEN LAIN)
+const langganSejarahTrekSupabase = () => {
+  supabase.channel('sru-tracks-live')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sru_track_history' }, (payload) => {
+      // Hanya kemaskini jika toggle diaktifkan
+      if (!paparkanTrekLaluan.value) return;
+
+      const newTrack = payload.new;
+      const caseId = Number(selectedCaseId.value);
+
+      // Semak jika trek baru ini relevan dengan kes yang sedang dipaparkan
+      const isRelevant = selectedCaseId.value === 'ALL' || newTrack.case_id === caseId;
+
+      if (isRelevant) {
+        const boatId = newTrack.boat_id; [1]
+        const newCoord = [newTrack.latitude, newTrack.longitude];
+
+        // Jika sudah ada garisan untuk SRU ini, tambah titik baru
+        if (trackHistoryPolylines[boatId]) {
+          trackHistoryPolylines[boatId].addLatLng(newCoord);
+        } else {
+          // Jika tiada, cipta garisan baru (contoh: SRU baru mula bergerak dalam kes ini)
+          trackHistoryPolylines[boatId] = L.polyline([newCoord], { color: '#06b6d4', weight: 2, opacity: 0.85 }).addTo(trackHistoryLayer);
+        }
+      }
+    })
+    .subscribe();
+};
 // ⏳ FUNGSI AMBIL DATA TRACK HISTORY DARI SUPABASE
 const loadTrackHistory = async () => {
   if (!mapInstance || !trackHistoryLayer) return
   trackHistoryLayer.clearLayers()
-  
-  // Abaikan jika toggle mati atau tiada kes spesifik dipilih
-  if (!paparkanTrekLaluan.value || selectedCaseId.value === 'ALL') return
 
-  const { data, error } = await supabase
-    .from('sru_tracks')
-    .select('sru_id, latitude, longitude')
-    .eq('case_id', Number(selectedCaseId.value))
-    .order('created_at', { ascending: true })
+  // Abaikan jika toggle mati
+  if (!paparkanTrekLaluan.value) return
+
+  let query = supabase
+    .from('sru_track_history')
+    .select('boat_id, latitude, longitude');
+
+  // Jika ada kes spesifik dipilih, tapis ikut ID kes. Jika tidak, ambil semua.
+  if (selectedCaseId.value !== 'ALL' && selectedCaseId.value !== '') {
+    query = query.eq('case_id', Number(selectedCaseId.value));
+  }
+  const { data, error } = await query.order('created_at', { ascending: true });
 
   if (error) {
     console.error("Error loading track history:", error)
@@ -1269,26 +1948,37 @@ const loadTrackHistory = async () => {
   // Kumpulkan titik koordinat mengikut bot (sru_id)
   const tracks = {}
   data.forEach(point => {
-    if (!tracks[point.sru_id]) tracks[point.sru_id] = []
-    tracks[point.sru_id].push([point.latitude, point.longitude])
+    if (!tracks[point.boat_id]) tracks[point.boat_id] = []
+    tracks[point.boat_id].push([point.latitude, point.longitude])
   })
-
+  
   // Lukis garisan taktikal bagi setiap SRU
-  Object.values(tracks).forEach(coords => {
-    L.polyline(coords, { 
+  Object.entries(tracks).forEach(([boatId, coords]) => {
+    const polyline = L.polyline(coords, { 
       color: '#06b6d4', 
-      weight: 3, 
-      dashArray: '6, 8', 
+      weight: 2, 
       opacity: 0.85 
-    }).addTo(trackHistoryLayer)
-  })
+    }).addTo(trackHistoryLayer);
+    trackHistoryPolylines[boatId] = polyline; // Simpan rujukan
+  });
 }
 
+// Watcher untuk memuat semula sejarah trek apabila kes ditukar
+watch(selectedCaseId, () => {
+  if (paparkanTrekLaluan.value) loadTrackHistory();
+});
+
 // Watcher untuk mengawal paparan trek laluan secara reaktif
-watch(paparkanTrekLaluan, (baru) => {
-  if (baru) loadTrackHistory()
-  else if (trackHistoryLayer) trackHistoryLayer.clearLayers()
-})
+watch(paparkanTrekLaluan, (isTrekDipaparkan) => {
+  if (isTrekDipaparkan) {
+    loadTrackHistory(); // Terus muat turun data apabila ditanda
+  } else {
+    if (trackHistoryLayer) {
+      trackHistoryLayer.clearLayers(); // Kosongkan layer apabila tidak ditanda
+    }
+    trackHistoryPolylines = {}; // Reset rujukan
+  }
+});
 
 // 🚀 FUNGSI HANTAR MESEJ (DENGAN OPTIMISTIC UI)
 const hantarMesejChatSupabase = async () => {
@@ -1317,28 +2007,116 @@ const hantarMesejChatSupabase = async () => {
   senaraiMesejChat.value.push(mesejLokal)
   autoScrollChatKeBawah()
 
-  const { error } = await supabase.from('sar_messages').insert({
+  const { error } = await supabase.from('sar_messages').insert([{
     case_id: currentTab === 'global' ? null : Number(selectedCaseId.value),
     sender: activeStation.value,
     message: teksMesej,
     chat_type: currentTab
-  })
+  }])
   if (error) {
     console.error("Gagal hantar mesej:", error)
   }
 }
+
+// ============================================================================
+// GOD MODE FUNCTIONS (ADMIN ONLY)
+// ============================================================================
+
+// A: Padam satu mesej chat
+const padamMesej = async (mesejId) => {
+  if (!confirm("Padam mesej ini?")) return;
+  await supabase.from('sar_messages').delete().eq('id', mesejId);
+};
+
+// B: Padam SEMUA mesej chat
+const padamSemuaMesej = async () => {
+  if (!confirm("AMARAN: Anda pasti mahu memadam KESEMUA sejarah mesej operasi?")) return;
+  await supabase.from('sar_messages').delete().neq('id', 0); // Padam semua rekod
+  alert("Semua mesej telah dibersihkan.");
+};
+
+// C: Padam SEMUA pelan/lukisan operasi di peta
+const padamSemuaPelan = async () => {
+  if (!confirm("AMARAN: Anda pasti mahu memadam KESEMUA lukisan pelan SAR di peta?")) return;
+  await supabase.from('sar_plans').delete().neq('id', 0);
+  alert("Semua pelan SAR telah dibersihkan dari peta.");
+};
+
+// D: Cuci sejarah Telemetri GPS (Kosongkan jadual sru_telemetry)
+const bukaModalPadamGPS = async () => {
+  // Bina query untuk dapatkan senarai trek
+  let query = supabase.from('sru_track_history').select('boat_id, case_id');
+
+  // Jika pengguna bukan Admin atau MRCC, tapis trek berdasarkan wilayah mereka
+  if (activeStation.value !== 'Admin System' && activeStation.value !== 'MRCC Putrajaya') {
+    const idKesWilayah = senaraiKes.value.filter(k => k.region === activeRegion.value).map(k => k.id);
+    query = query.in('case_id', idKesWilayah);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    alert("Gagal mendapatkan senarai trek: " + error.message);
+    return;
+  }
+
+  const uniqueTracks = data.reduce((acc, current) => {
+    const key = `${current.boat_id}-${current.case_id}`;
+    if (!acc.find(item => `${item.boat_id}-${item.case_id}` === key)) {
+      acc.push(current);
+    }
+    return acc;
+  }, []);
+
+  senaraiTrekUntukPadam.value = uniqueTracks;
+  showPadamGpsModal.value = true;
+};
+
+const sahkanPadamTrekSpesifik = async (sruId, caseId) => {
+  const namaKes = dapatkanNamaKes(caseId); [1]
+  if (!confirm(`Anda pasti mahu memadam semua sejarah pergerakan untuk aset '${sruId}' dalam kes '#${caseId} - ${namaKes}'?`)) return;
+  await supabase.from('sru_track_history').delete().match({ boat_id: sruId, case_id: caseId }); [1]
+  alert(`Sejarah pergerakan untuk aset '${sruId}' telah dipadam.`); [1]
+  showPadamGpsModal.value = false;
+  if (paparkanTrekLaluan.value) loadTrackHistory(); // Muat semula paparan trek jika aktif
+};
+
+// E: Hantar Pengumuman Am (Broadcast)
+const hantarBroadcast = async () => {
+  if (!mesejBroadcast.value) return;
+  
+  const { error } = await supabase.from('sar_messages').insert([{ 
+    sender: 'PENGUMUMAN ADMIN', 
+    message: mesejBroadcast.value,
+    chat_type: 'global'
+  }]);
+
+  if (!error) {
+    alert("Pengumuman dihantar!");
+    mesejBroadcast.value = '';
+  }
+};
+
+watch(telemetriRealtime, () => {
+  kemaskiniMarkerSRUAtasPeta();
+}, { deep: true });
 </script>
 
 <style>
 :global(body) { margin: 0 !important; padding: 0 !important; width: 100vw; height: 100vh; overflow: hidden; background-color: #020617; }
 :global(#app) { max-width: none !important; padding: 0 !important; margin: 0 !important; width: 100%; height: 100%; display: flex; }
 *, *::before, *::after { box-sizing: border-box; }
+
+/* Kawalan susunan butang di Top Right supaya mendatar */
+.leaflet-top.leaflet-right { display: flex; flex-direction: row; align-items: flex-start; justify-content: flex-end; padding: 10px; gap: 10px; }
+.leaflet-top.leaflet-right .leaflet-control { margin: 0 !important; }
+
 .custom-area-label { background: none !important; border: none !important; }
 
 .map-toolbar {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: 60px; /* Disesuaikan supaya berada di bawah butang layer */
+  right: 10px;
+  left: auto;
   z-index: 1000;
   background: #1e293b;
   padding: 4px;
@@ -1363,5 +2141,53 @@ const hantarMesejChatSupabase = async () => {
 .map-toolbar button:hover { background: #334155; }
 .map-toolbar button.active { background: #2563eb; border-color: #38bdf8; }
 
+/* Animasi Mentol Berkelip untuk SRU */
+/* 📡 ANIMASI RADAR PULSING UNTUK SRU DI WEB */
+.sru-marker-blink {
+  animation: webSruPulse 2s infinite ease-out;
+  transform-origin: center;
+  stroke-width: 2px;
+}
+
+@keyframes webSruPulse {
+  0% {
+    r: 4px;                  /* Saiz asal bulatan kecil */
+    stroke-opacity: 1;
+    fill-opacity: 0.9;
+    stroke: #00ffff;         /* Warna Cyan Neon */
+    filter: drop-shadow(0 0 2px #00ffff);
+  }
+  50% {
+    fill-opacity: 0.6;
+    filter: drop-shadow(0 0 15px #00ffff);
+  }
+  100% {
+    r: 18px;                 /* Ombak mengembang besar */
+    stroke-opacity: 0;       /* Pudar di penghujung */
+    fill-opacity: 0;
+    stroke: #00ffff;
+  }
+}
+
 @keyframes popupAnim { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+.badge-unread {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background-color: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  z-index: 10;
+}
 </style>
