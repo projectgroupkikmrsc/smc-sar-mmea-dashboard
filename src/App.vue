@@ -252,7 +252,7 @@
                 <tr v-for="tele in telemetriRealtime" :key="tele.boat_id" style="border-bottom: 1px solid #f1f5f9;">
                   <td style="padding: 10px 0; font-weight: 800; color: #0f172a;">{{ tele.boat_id }}</td>
                   <td style="padding: 10px 0;">{{ tele.speed ? Number(tele.speed).toFixed(1) : '0.0' }}</td>
-                  <td style="padding: 10px 0;">{{ tele.course ? tele.course + '°' : '---' }}</td>
+                  <td style="padding: 10px 0;">{{ tele.course ? Math.round(tele.course) + '°' : '---' }}</td>
                   <td style="padding: 10px 0; color: #10b981; font-weight: 700;">{{ tele.eta || '---' }}</td>
                   <td style="padding: 10px 0; color: #2563eb; font-weight: 800;">{{ tele.csp || '0.0' }} NM</td>
                 </tr>
@@ -1897,7 +1897,7 @@ const langganPerubahanPelanSupabase = () => {
 // 📡 FUNGSI RADAR REALTIME (MENANGKAP PERUBAHAN SEJARAH TREK DARI STESEN LAIN)
 const langganSejarahTrekSupabase = () => {
   supabase.channel('sru-tracks-live')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sru_tracks' }, (payload) => {
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sru_track_history' }, (payload) => {
       // Hanya kemaskini jika toggle diaktifkan
       if (!paparkanTrekLaluan.value) return;
 
@@ -1908,15 +1908,15 @@ const langganSejarahTrekSupabase = () => {
       const isRelevant = selectedCaseId.value === 'ALL' || newTrack.case_id === caseId;
 
       if (isRelevant) {
-        const sruId = newTrack.sru_id;
+        const boatId = newTrack.boat_id; [1]
         const newCoord = [newTrack.latitude, newTrack.longitude];
 
         // Jika sudah ada garisan untuk SRU ini, tambah titik baru
-        if (trackHistoryPolylines[sruId]) {
-          trackHistoryPolylines[sruId].addLatLng(newCoord);
+        if (trackHistoryPolylines[boatId]) {
+          trackHistoryPolylines[boatId].addLatLng(newCoord);
         } else {
           // Jika tiada, cipta garisan baru (contoh: SRU baru mula bergerak dalam kes ini)
-          trackHistoryPolylines[sruId] = L.polyline([newCoord], { color: '#06b6d4', weight: 2, opacity: 0.85 }).addTo(trackHistoryLayer);
+          trackHistoryPolylines[boatId] = L.polyline([newCoord], { color: '#06b6d4', weight: 2, opacity: 0.85 }).addTo(trackHistoryLayer);
         }
       }
     })
@@ -1931,8 +1931,8 @@ const loadTrackHistory = async () => {
   if (!paparkanTrekLaluan.value) return
 
   let query = supabase
-    .from('sru_tracks')
-    .select('sru_id, latitude, longitude');
+    .from('sru_track_history')
+    .select('boat_id, latitude, longitude');
 
   // Jika ada kes spesifik dipilih, tapis ikut ID kes. Jika tidak, ambil semua.
   if (selectedCaseId.value !== 'ALL' && selectedCaseId.value !== '') {
@@ -1943,23 +1943,23 @@ const loadTrackHistory = async () => {
   if (error) {
     console.error("Error loading track history:", error)
     return
-  } [1]
+  }
 
   // Kumpulkan titik koordinat mengikut bot (sru_id)
   const tracks = {}
   data.forEach(point => {
-    if (!tracks[point.sru_id]) tracks[point.sru_id] = []
-    tracks[point.sru_id].push([point.latitude, point.longitude])
+    if (!tracks[point.boat_id]) tracks[point.boat_id] = []
+    tracks[point.boat_id].push([point.latitude, point.longitude])
   })
   
   // Lukis garisan taktikal bagi setiap SRU
-  Object.entries(tracks).forEach(([sruId, coords]) => {
+  Object.entries(tracks).forEach(([boatId, coords]) => {
     const polyline = L.polyline(coords, { 
       color: '#06b6d4', 
       weight: 2, 
       opacity: 0.85 
     }).addTo(trackHistoryLayer);
-    trackHistoryPolylines[sruId] = polyline; // Simpan rujukan
+    trackHistoryPolylines[boatId] = polyline; // Simpan rujukan
   });
 }
 
