@@ -121,8 +121,8 @@
                   <div style="display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center;">
                     <select v-model="selectedCaseId" @change="tukarKesTaktikal" style="width: 100%; padding: 7px; border: 1px solid #475569; border-radius: 4px; font-size: 12px; font-weight: bold; background-color: #0f172a; color: #f8fafc; height: 34px;">
                       <option value="ALL">🌍 [SEMUA KES AKTIF {{ activeStation === 'MRCC Putrajaya' ? 'NASIONAL' : activeRegion }}]</option>
-                      <option v-for="kes in senaraiKesAktifSahaja" :key="kes.id" :value="kes.id">
-                        #{{ kes.id }} - {{ kes.case_name }} ({{ kes.region }})
+                      <option v-for="kes in senaraiKesPilihanDropdown" :key="kes.id" :value="kes.id">
+                        #{{ kes.id }} - {{ kes.case_name }} ({{ kes.region }}) {{ (kes.status || '').toLowerCase() === 'accomplished' ? '⚠️ [SELESAI]' : '' }}
                       </option>
                     </select>
                     <button v-if="selectedCaseId !== 'ALL' && selectedCaseId !== ''" @click="bukaModalEditKes" style="background: #334155; color: #38bdf8; border: 1px solid #475569; width: 34px; height: 34px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="Urus / Selesai Kes">
@@ -519,24 +519,26 @@
 
       <!-- LOAD CASE MODAL -->
       <div v-if="showLoadCaseModal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(4px);">
-        <div style="background: white; width: 480px; border-radius: 8px; padding: 18px; color: #1e293b; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div style="background: white; width: 520px; max-width: 95vw; border-radius: 8px; padding: 18px; color: #1e293b; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
             <div>
-              <h3 style="margin: 0; font-size: 15px; font-weight: bold; color: #0f172a;">📂 Arkib Insiden SAR</h3>
-              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Pilih kes untuk memuatkan data taktikal & sejarah</div>
+              <h3 style="margin: 0; font-size: 15px; font-weight: bold; color: #0f172a;">📂 Arkib Insiden SAR ({{ activeStation === 'MRCC Putrajaya' ? 'NASIONAL' : activeRegion }})</h3>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">
+                Pilih kes wilayah untuk melihat sejarah pergerakan & pelan, atau aktifkan semula kes.
+              </div>
             </div>
             <button @click="showLoadCaseModal = false" style="background:none; border:none; color:#64748b; font-size:16px; cursor:pointer;">✕</button>
           </div>
-          <div style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
+
+          <div style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
             <div 
-              v-for="oldKes in senaraiKes" 
+              v-for="oldKes in senaraiKesModalArkib" 
               :key="oldKes.id" 
-              @click="selectedCaseId = oldKes.id; tukarKesTaktikal(); showLoadCaseModal = false" 
               :style="{ 
-                borderColor: (oldKes.status || '').toLowerCase() === 'active' ? '#86efac' : '#e2e8f0',
-                backgroundColor: (oldKes.status || '').toLowerCase() === 'active' ? '#f0fdf4' : '#fafafa'
+                borderColor: (oldKes.status || '').toLowerCase() === 'active' ? '#86efac' : '#cbd5e1',
+                backgroundColor: (oldKes.status || '').toLowerCase() === 'active' ? '#f0fdf4' : '#f8fafc'
               }"
-              style="padding: 10px; border: 1.5px solid #e2e8f0; border-radius: 6px; cursor: pointer; transition: 0.2s;"
+              style="padding: 10px; border: 1.5px solid; border-radius: 6px; display: flex; flex-direction: column; gap: 6px;"
             >
               <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: bold; color: #0f172a;">
                 <span>#{{ oldKes.id }} - {{ oldKes.case_name }}</span>
@@ -552,15 +554,40 @@
                     }"
                     style="font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 4px; border: 1px solid; text-transform: uppercase;"
                   >
-                    {{ (oldKes.status || '').toLowerCase() === 'active' ? '🟢 AKTIF' : '⚪ ' + (oldKes.status || 'SELESAI') }}
+                    {{ (oldKes.status || '').toLowerCase() === 'active' ? '🟢 AKTIF' : '⚪ SELESAI' }}
                   </span>
                 </div>
               </div>
-              <div style="font-size: 10px; color: #64748b; margin-top: 4px;">
+
+              <div style="font-size: 10px; color: #64748b;">
                 No Kes: <strong>{{ oldKes.case_no || '-' }}</strong> • Objek: {{ oldKes.search_object || 'Tiada' }}
               </div>
+
+              <!-- BUTANG-BUTANG TINDAKAN KES -->
+              <div style="display: flex; gap: 6px; margin-top: 4px; border-top: 1px solid #e2e8f0; padding-top: 6px;">
+                <button 
+                  @click="paparKesDariArkib(oldKes)" 
+                  style="flex: 1; padding: 5px 8px; background: #0284c7; color: white; border: none; border-radius: 4px; font-size: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;"
+                >
+                  <span>👁️</span><span>Papar Kes (Lihat History & Pelan)</span>
+                </button>
+
+                <button 
+                  v-if="(oldKes.status || '').toLowerCase() !== 'active'" 
+                  @click="aktifkanSemulaKes(oldKes)" 
+                  style="padding: 5px 10px; background: #16a34a; color: white; border: none; border-radius: 4px; font-size: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 4px;"
+                  title="Aktifkan semula kes ini supaya muncul di senarai kes aktif"
+                >
+                  <span>🔄</span><span>Reactivate</span>
+                </button>
+              </div>
+            </div>
+
+            <div v-if="senaraiKesModalArkib.length === 0" style="text-align: center; color: #94a3b8; padding: 30px 10px; font-size: 11px;">
+              Tiada rekod kes SAR dijumpai untuk wilayah ini.
             </div>
           </div>
+
           <button @click="showLoadCaseModal = false" style="margin-top: 12px; width: 100%; padding: 8px; background: #334155; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Tutup</button>
         </div>
       </div>
@@ -941,6 +968,31 @@ const senaraiKesAktifSahaja = computed(() => {
     const r = (k.region || '').toUpperCase().trim()
     return s === 'active' && (r === regUser || r.includes(regUser) || regUser.includes(r))
   })
+})
+
+const senaraiKesModalArkib = computed(() => {
+  if (!senaraiKes.value || !Array.isArray(senaraiKes.value)) return []
+  if (activeStation.value === 'MRCC Putrajaya' || activeStation.value === 'Admin System' || !activeRegion.value || activeRegion.value === 'NASIONAL' || activeRegion.value === 'GLOBAL') {
+    return senaraiKes.value
+  }
+  const regUser = activeRegion.value.toUpperCase().trim()
+  return senaraiKes.value.filter(k => {
+    const r = (k.region || '').toUpperCase().trim()
+    return r === regUser || r.includes(regUser) || regUser.includes(r)
+  })
+})
+
+const senaraiKesPilihanDropdown = computed(() => {
+  const list = [...senaraiKesAktifSahaja.value]
+  if (selectedCaseId.value !== 'ALL' && selectedCaseId.value) {
+    const idNum = Number(selectedCaseId.value)
+    const wujud = list.some(k => Number(k.id) === idNum)
+    if (!wujud) {
+      const kesTerpilih = senaraiKes.value.find(k => Number(k.id) === idNum)
+      if (kesTerpilih) list.push(kesTerpilih)
+    }
+  }
+  return list
 })
 
 const paparanSRUKesAktif = computed(() => {
@@ -1957,6 +2009,33 @@ const simpanKesBaruSupabase = async () => {
     }
   } catch (err) {
     alert("Ralat mencipta kes: " + err.message)
+  }
+}
+
+const paparKesDariArkib = (kes) => {
+  if (!kes) return
+  selectedCaseId.value = kes.id
+  tukarKesTaktikal()
+  kemaskiniSenaraiAsetKes()
+  showLoadCaseModal.value = false
+}
+
+const aktifkanSemulaKes = async (kes) => {
+  if (!confirm(`Adakah anda pasti mahu MENGAKTIFKAN SEMULA Kes #${kes.id} (${kes.case_name})?`)) return
+  try {
+    const { error } = await supabase.from('sar_incidents').update({ status: 'active' }).eq('id', Number(kes.id))
+    if (!error) {
+      await tarikDataKes()
+      selectedCaseId.value = kes.id
+      tukarKesTaktikal()
+      kemaskiniSenaraiAsetKes()
+      showLoadCaseModal.value = false
+      alert(`Kes #${kes.id} telah diaktifkan semula!`)
+    } else {
+      alert("Ralat mengaktifkan semula kes: " + error.message)
+    }
+  } catch (e) {
+    alert("Ralat mengaktifkan semula kes: " + e.message)
   }
 }
 
