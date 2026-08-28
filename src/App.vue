@@ -412,60 +412,25 @@
           </div>
 
           <!-- TAB 2: HISTORY (SEJARAH PERGERAKAN MENGIKUT KES AKTIF) -->
-          <div v-show="activeRightSidebarTab === 'history'" style="flex: 1; display:flex; flex-direction:column; padding: 12px; overflow-y: auto; color: #1e293b; gap: 10px;">
+          <div v-show="activeRightSidebarTab === 'history'" style="flex: 1; display:flex; flex-direction:column; padding: 12px; min-height: 0; color: #1e293b; gap: 10px;">
             
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <!-- HEADER ATAS -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; flex-shrink: 0;">
               <div>
                 <h4 style="margin: 0; font-size: 12px; font-weight: bold; color: #0f172a;">⏳ SEJARAH PERGERAKAN</h4>
                 <div style="font-size: 9px; color: #0284c7; font-weight: bold; margin-top: 2px;">
                   Kes: {{ selectedCaseId === 'ALL' ? 'Semua Kes Aktif' : `#${selectedCaseId}` }}
                 </div>
               </div>
-              <button 
-                @click="bukaTimelinePlayback" 
-                :disabled="totalLoadedPoints === 0" 
-                :style="{ background: totalLoadedPoints > 0 ? '#0284c7' : '#94a3b8', cursor: totalLoadedPoints > 0 ? 'pointer' : 'not-allowed' }"
-                style="color: white; border: none; padding: 4px 10px; font-size: 10px; border-radius: 4px; font-weight: bold; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
-              >
-                <span>⏱️</span><span>Replay ({{ totalLoadedPoints }} pts)</span>
-              </button>
+              <span style="font-size: 9px; background: #eff6ff; color: #2563eb; padding: 2px 6px; border-radius: 4px; font-weight: bold; border: 1px solid #bfdbfe;">
+                📱 Mobile Transmit
+              </span>
             </div>
 
-            <!-- PENAPIS MASA MULA & TAMAT -->
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px;">
-              <div style="font-size: 10px; font-weight: bold; color: #475569; display: flex; justify-content: space-between; align-items: center;">
-                <span>📅 PENAPIS MASA</span>
-                <button v-if="filterMasaMula || filterMasaTamat" @click="resetFilterMasa" style="background: none; border: none; color: #ef4444; font-size: 9px; cursor: pointer; padding: 0;">Reset</button>
-              </div>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-                <div>
-                  <label style="display: block; font-size: 8px; font-weight: bold; color: #64748b; margin-bottom: 2px;">MULA (Dari):</label>
-                  <input type="datetime-local" v-model="filterMasaMula" style="width: 100%; font-size: 9px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 3px; background: #fff;" />
-                </div>
-                <div>
-                  <label style="display: block; font-size: 8px; font-weight: bold; color: #64748b; margin-bottom: 2px;">TAMAT (Hingga):</label>
-                  <input type="datetime-local" v-model="filterMasaTamat" style="width: 100%; font-size: 9px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 3px; background: #fff;" />
-                </div>
-              </div>
-              <div style="font-size: 8px; color: #94a3b8; font-style: italic;">
-                *Jika masa tidak dipilih, sistem akan memuat turun 1,000 titik terkini secara lalai.
-              </div>
-            </div>
-
-            <!-- BUTANG LOAD TRACK DATA -->
-            <button 
-              @click="muatTurunSejarahSRU" 
-              :disabled="isMengecasSejarah || senaraiSruSejarah.length === 0"
-              style="width: 100%; background: #2563eb; color: white; border: none; padding: 8px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 4px rgba(37,99,235,0.2);"
-            >
-              <span v-if="isMengecasSejarah">⏳ Memuat Turun Data...</span>
-              <span v-else>📥 Muat Turun Rekod (Load Track)</span>
-            </button>
-
-            <!-- SENARAI ASET KES BERKENAAN -->
-            <div style="display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1;">
+            <!-- SENARAI ASET KES (MOBILE TRANSMITTED) DI BAHAGIAN TENGAH -->
+            <div style="display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; min-height: 120px;">
               <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 2px;">
-                <span style="font-size: 10px; font-weight: bold; color: #64748b;">ASET KES ({{ senaraiSruSejarah.length }} Terlibat):</span>
+                <span style="font-size: 10px; font-weight: bold; color: #64748b;">ASET TRANSMIT ({{ senaraiSruSejarah.length }} Bot):</span>
                 <span style="font-size: 9px; color: #94a3b8;">Tandakan (✓) untuk muat turun</span>
               </div>
 
@@ -481,9 +446,52 @@
                 </div>
               </div>
 
-              <div v-if="senaraiSruSejarah.length === 0" style="text-align:center; color:#94a3b8; padding:30px 10px; font-size:11px; background:#f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px;">
-                Tiada aset SRU didaftarkan untuk kes ini. Sila muat naik fail SAROPS atau pastikan ada bot aktif di radar.
+              <div v-if="senaraiSruSejarah.length === 0" style="text-align:center; color:#94a3b8; padding:25px 10px; font-size:11px; background:#f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px;">
+                Tiada rekod transmisi aplikasi mudah alih (mobile) dijumpai untuk kes ini.
               </div>
+            </div>
+
+            <!-- KAWASAN KAWALAN DI BAHAGIAN BAWAH -->
+            <div style="display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; border-top: 1px solid #e2e8f0; padding-top: 8px;">
+              
+              <!-- 1. PENAPIS MASA (MULA & TAMAT) -->
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px;">
+                <div style="font-size: 10px; font-weight: bold; color: #475569; display: flex; justify-content: space-between; align-items: center;">
+                  <span>📅 PENAPIS MASA (Pilihan)</span>
+                  <button v-if="filterMasaMula || filterMasaTamat" @click="resetFilterMasa" style="background: none; border: none; color: #ef4444; font-size: 9px; cursor: pointer; padding: 0;">Reset</button>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                  <div>
+                    <label style="display: block; font-size: 8px; font-weight: bold; color: #64748b; margin-bottom: 2px;">MULA (Dari):</label>
+                    <input type="datetime-local" v-model="filterMasaMula" style="width: 100%; font-size: 9px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 3px; background: #fff;" />
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 8px; font-weight: bold; color: #64748b; margin-bottom: 2px;">TAMAT (Hingga):</label>
+                    <input type="datetime-local" v-model="filterMasaTamat" style="width: 100%; font-size: 9px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 3px; background: #fff;" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2. BUTANG LOAD TRACK DATA DI BAWAH PENAPIS MASA -->
+              <button 
+                @click="muatTurunSejarahSRU" 
+                :disabled="isMengecasSejarah || senaraiSruSejarah.length === 0"
+                style="width: 100%; background: #2563eb; color: white; border: none; padding: 8px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 4px rgba(37,99,235,0.2);"
+              >
+                <span v-if="isMengecasSejarah">⏳ Memuat Turun Data...</span>
+                <span v-else>📥 Muat Turun Rekod (Load Track)</span>
+              </button>
+
+              <!-- 3. BUTANG REPLAY DI BAWAH BUTTON LOAD -->
+              <button 
+                @click="bukaTimelinePlayback" 
+                :disabled="totalLoadedPoints === 0" 
+                :style="{ background: totalLoadedPoints > 0 ? '#0284c7' : '#94a3b8', cursor: totalLoadedPoints > 0 ? 'pointer' : 'not-allowed' }"
+                style="width: 100%; color: white; border: none; padding: 8px; font-size: 11px; border-radius: 4px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+              >
+                <span>⏱️</span><span>Replay Track ({{ totalLoadedPoints.toLocaleString() }} pts)</span>
+              </button>
+
             </div>
 
           </div>
@@ -1504,50 +1512,67 @@ const tutupDriftSimulasi = () => {
 }
 
 // ============================================================================
-// 8. SEJARAH PERGERAKAN & REPLAY TIMELINE PLAYBACK (MENGIKUT KES AKTIF)
+// 8. SEJARAH PERGERAKAN & REPLAY TIMELINE PLAYBACK (ASET TRANSMIT MOBILE)
 // ============================================================================
 
-// Kemaskini senarai aset yang terlibat mengikut kes aktif yang dipilih
-const kemaskiniSenaraiAsetKes = () => {
-  const asetUnik = new Set()
+// Kemaskini senarai aset yang pernah transmit location menggunakan apps mobile di bawah kes aktif
+const kemaskiniSenaraiAsetKes = async () => {
+  try {
+    const asetUnik = new Set()
 
-  // 1. Ambil nama SRU daripada pelan kes yang sedang aktif/dipilih
-  const sruKesList = paparanSRUKesAktif.value || []
-  sruKesList.forEach(sru => {
-    if (sru.nama && sru.nama.trim()) {
-      asetUnik.add(sru.nama.trim().toUpperCase())
+    // 1. Dapatkan senarai bot_id unik dari rekod track history mengikut kes aktif
+    let query = supabase.from('sru_track_history').select('boat_id, case_id')
+    if (selectedCaseId.value !== 'ALL' && selectedCaseId.value) {
+      query = query.or(`case_id.eq.${Number(selectedCaseId.value)},case_id.is.null`)
     }
-  })
 
-  // 2. Jika tiada SRU dalam pelan kes atau mod SEMUA KES, semak juga telemetri realtime yang sedang aktif
-  if (asetUnik.size === 0) {
+    const { data, error } = await query
+    if (!error && data) {
+      data.forEach(r => {
+        if (r.boat_id && r.boat_id.trim()) {
+          if (selectedCaseId.value === 'ALL' || !selectedCaseId.value) {
+            asetUnik.add(r.boat_id.trim().toUpperCase())
+          } else {
+            if (Number(r.case_id) === Number(selectedCaseId.value) || !r.case_id) {
+              asetUnik.add(r.boat_id.trim().toUpperCase())
+            }
+          }
+        }
+      })
+    }
+
+    // 2. Semak juga bot yang sedang transmit secara live dalam telemetri realtime
     telemetriRealtime.value.forEach(t => {
       if (t.boat_id && t.boat_id.trim()) {
-        asetUnik.add(t.boat_id.trim().toUpperCase())
+        if (selectedCaseId.value === 'ALL' || !selectedCaseId.value || Number(t.case_id) === Number(selectedCaseId.value) || !t.case_id) {
+          asetUnik.add(t.boat_id.trim().toUpperCase())
+        }
       }
     })
+
+    // Simpan status sedia ada jika aset telah di-load sebelum ini
+    const sediaAdaMap = {}
+    senaraiSruSejarah.value.forEach(s => {
+      sediaAdaMap[s.boat_id.toUpperCase()] = s
+    })
+
+    const senaraiBaru = Array.from(asetUnik).map(boat_id => {
+      if (sediaAdaMap[boat_id]) {
+        return sediaAdaMap[boat_id]
+      }
+      return {
+        boat_id: boat_id,
+        points_count: 0,
+        coords: [],
+        isChecked: true
+      }
+    })
+
+    senaraiSruSejarah.value = senaraiBaru
+    kemaskiniPaparanTrekPeta()
+  } catch (err) {
+    console.error("Ralat kemaskiniSenaraiAsetKes:", err)
   }
-
-  // Simpan status sedia ada jika aset telah di-load sebelum ini
-  const sediaAdaMap = {}
-  senaraiSruSejarah.value.forEach(s => {
-    sediaAdaMap[s.boat_id.toUpperCase()] = s
-  })
-
-  const senaraiBaru = Array.from(asetUnik).map(boat_id => {
-    if (sediaAdaMap[boat_id]) {
-      return sediaAdaMap[boat_id]
-    }
-    return {
-      boat_id: boat_id,
-      points_count: 0,
-      coords: [],
-      isChecked: true
-    }
-  })
-
-  senaraiSruSejarah.value = senaraiBaru
-  kemaskiniPaparanTrekPeta()
 }
 
 const resetFilterMasa = () => {
@@ -1556,9 +1581,8 @@ const resetFilterMasa = () => {
 }
 
 const muatTurunSejarahSRU = async () => {
-  // Pastikan senarai aset adalah terkini mengikut kes
   if (senaraiSruSejarah.value.length === 0) {
-    kemaskiniSenaraiAsetKes()
+    await kemaskiniSenaraiAsetKes()
   }
 
   const targetBoatIds = senaraiSruSejarah.value
@@ -1577,6 +1601,10 @@ const muatTurunSejarahSRU = async () => {
       .select('*')
       .in('boat_id', targetBoatIds)
 
+    if (selectedCaseId.value !== 'ALL' && selectedCaseId.value) {
+      query = query.or(`case_id.eq.${Number(selectedCaseId.value)},case_id.is.null`)
+    }
+
     if (filterMasaMula.value) {
       query = query.gte('created_at', new Date(filterMasaMula.value).toISOString())
     }
@@ -1584,13 +1612,8 @@ const muatTurunSejarahSRU = async () => {
       query = query.lte('created_at', new Date(filterMasaTamat.value).toISOString())
     }
 
-    // Jika tiada penapis masa mula & tamat dipilih, hadkan kepada 1000 titik terkini secara lalai
-    const tiadaFilterMasa = !filterMasaMula.value && !filterMasaTamat.value
-    if (tiadaFilterMasa) {
-      query = query.order('created_at', { ascending: false }).limit(1000)
-    } else {
-      query = query.order('created_at', { ascending: true })
-    }
+    // Tiada had limit (unlimited) - disusun kronologi menaik
+    query = query.order('created_at', { ascending: true })
 
     const { data, error } = await query
 
@@ -1600,17 +1623,11 @@ const muatTurunSejarahSRU = async () => {
     }
 
     if (data) {
-      // Jika data diambil secara descending (1000 titik terkini), susun semula kronologi ascending
-      let sortedData = data
-      if (tiadaFilterMasa) {
-        sortedData = [...data].reverse()
-      }
-
       // Agregat koordinat mengikut boat_id
       const ptsByBoat = {}
       targetBoatIds.forEach(id => { ptsByBoat[id.toUpperCase()] = [] })
 
-      sortedData.forEach(r => {
+      data.forEach(r => {
         const bId = (r.boat_id || '').toUpperCase()
         if (ptsByBoat[bId]) {
           const lat = parseFloat(r.latitude)
