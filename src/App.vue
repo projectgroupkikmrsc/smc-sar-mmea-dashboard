@@ -1858,6 +1858,7 @@ const senaraiSruSejarah = ref([])
 let chatChannelSubscription = null
 const isLeftPanelVisible = ref(true)
 let mapInstance = null
+let sapLayerGroup = null
 let trackHistoryPolylines = {}; // Simpan rujukan kepada setiap polyline SRU
 let trackHistoryLayer = null
 
@@ -2104,6 +2105,20 @@ const senaraiKesAktifSahaja = computed(() => {
   });
 })
 
+// Pemilihan kes aktif secara automatik dan reaktif
+watch(senaraiKesAktifSahaja, (newVal) => {
+  if (newVal && newVal.length > 0) {
+    const wujud = newVal.some(k => Number(k.id) === Number(selectedCaseId.value));
+    if (!wujud || selectedCaseId.value === 'ALL') {
+      selectedCaseId.value = newVal[0].id;
+    }
+  }
+}, { immediate: true });
+
+watch(selectedCaseId, () => {
+  tukarKesTaktikal();
+});
+
 const isGlobalChatActive = computed(() => activeChatTab.value === 'global');
 const isLocalChatActive = computed(() => activeChatTab.value === 'local');
 const isCaseSelected = computed(() => selectedCaseId.value !== 'ALL');
@@ -2290,6 +2305,11 @@ const initMap = async () => {
     tempDrawingLayer.clearLayers();
   }
   tempDrawingLayer = L.layerGroup().addTo(mapInstance);
+
+  if (sapLayerGroup && mapInstance.hasLayer(sapLayerGroup)) {
+    sapLayerGroup.clearLayers();
+  }
+  sapLayerGroup = L.layerGroup().addTo(mapInstance);
 
   trackHistoryLayer = L.layerGroup().addTo(mapInstance);
   replayLayer = L.layerGroup().addTo(mapInstance);
@@ -3870,7 +3890,7 @@ const kemaskiniFrameReplay = () => {
     }
 
     // 2. Lukis atau gerakkan marker bot pada kedudukan terkini frame ini
-    const tooltipText = `🛥️ <b>${boatId}</b><br>🕒 Cap Masa: ${formatTimelineDisplayTime(currentPoint.created_at)}<br>📍 ${toDDM(latestCoord[0], false)}, ${toDDM(latestCoord[1], true)}`;
+    const tooltipText = `🛥️ <b>${boatId}</b><br>🕒 Cap Masa: ${formatTimelineDisplayTime(currentPoint.created_at)}<br>📍 ${formatLatLng(latestCoord[0], true)}, ${formatLatLng(latestCoord[1], false)}`;
 
     if (replayMarkers[boatId]) {
       replayMarkers[boatId].setLatLng(latestCoord);
