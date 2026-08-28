@@ -1934,18 +1934,19 @@ let tempPoints = []
 const currentLat = ref("00° 00.00' N")
 const currentLng = ref("000° 00.00' E")
 
-const formatLatLng = (value, isLat) => {
-  if (value === null || value === undefined || isNaN(value)) {
-    return isLat ? "00° 00.00' N" : "000° 00.00' E";
-  }
-  const dir = value < 0 ? (isLat ? 'S' : 'W') : (isLat ? 'N' : 'E');
-  const absVal = Math.abs(value);
-  const degrees = Math.floor(absVal);
-  const minutes = ((absVal - degrees) * 60).toFixed(2);
-  const padDeg = isLat ? String(degrees).padStart(2, '0') : String(degrees).padStart(3, '0');
-  const minutesStr = parseFloat(minutes) < 10 ? '0' + minutes : minutes;
-  return `${padDeg}° ${minutesStr}' ${dir}`;
-};
+// FORMAT PENUKARAN KOORDINAT DDM
+const toDDM = (deg, isLng) => {
+  if (deg === null || deg === undefined || isNaN(deg)) return isLng ? "000° 00.00' E" : "00° 00.00' N"
+  const absDeg = Math.abs(deg)
+  const degrees = Math.floor(absDeg)
+  const minutes = ((absDeg - degrees) * 60).toFixed(2)
+  const direction = isLng ? (deg >= 0 ? 'E' : 'W') : (deg >= 0 ? 'N' : 'S')
+  const degreesStr = String(degrees).padStart(isLng ? 3 : 2, '0')
+  const minutesStr = parseFloat(minutes) < 10 ? '0' + minutes : minutes
+  return `${degreesStr}° ${minutesStr}' ${direction}`
+}
+
+const formatLatLng = (value, isLat) => toDDM(value, !isLat)
 
 // PARSING KOORDINAT MARITIM (DD, DDM, DMS)
 const parseMaritimeCoordinates = (inputStr) => {
