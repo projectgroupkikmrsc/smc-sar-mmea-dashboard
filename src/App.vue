@@ -859,19 +859,10 @@ const senaraiKesAktifSahaja = computed(() => {
   })
 })
 
-watch(senaraiKesAktifSahaja, (newVal) => {
-  if (newVal && newVal.length > 0) {
-    const wujud = newVal.some(k => Number(k.id) === Number(selectedCaseId.value))
-    if (!wujud || selectedCaseId.value === 'ALL') {
-      selectedCaseId.value = newVal[0].id
-    }
-  }
-}, { immediate: true })
-
 const paparanSRUKesAktif = computed(() => {
-  if (selectedCaseId.value === 'ALL') {
-    const idKesAktif = senaraiKesAktifSahaja.value.map(k => Number(k.id))
-    return senaraiMasterSRU.value.filter(s => idKesAktif.includes(Number(s.caseId)))
+  if (!senaraiMasterSRU.value || senaraiMasterSRU.value.length === 0) return []
+  if (selectedCaseId.value === 'ALL' || !selectedCaseId.value) {
+    return senaraiMasterSRU.value
   }
   return senaraiMasterSRU.value.filter(s => Number(s.caseId) === Number(selectedCaseId.value))
 })
@@ -1661,19 +1652,29 @@ const recallPlanDariSupabase = async () => {
     if (!error && data) {
       senaraiMasterSRU.value = data.map(r => ({
         id: r.id,
-        caseId: Number(r.case_id),
-        nama: r.sru_name,
-        corak: r.pattern_name || 'PARALLEL',
-        kawasanNama: r.zone_name,
-        csp_coord: r.csp_coord,
-        corner_points: r.corner_points,
-        sortie_waypoints: r.sortie_waypoints
+        caseId: Number(r.case_id || r.caseId || 0),
+        nama: r.sru_name || r.nama || r.asset_name || 'SRU',
+        corak: r.pattern_name || r.corak || r.search_pattern || 'PARALLEL',
+        kawasanNama: r.zone_name || r.kawasanNama || r.area_name || 'SEARCH AREA',
+        csp_coord: r.csp_coord || r.cspCoord || null,
+        corner_points: r.corner_points || r.cornerPoints || null,
+        sortie_waypoints: r.sortie_waypoints || r.sortieWaypoints || []
       }))
       tukarKesTaktikal()
+      kemaskiniSenaraiAsetKes()
     }
   } catch (e) {
     console.error("Ralat recallPlanDariSupabase:", e)
   }
+}
+
+const langganPelanSarRealtime = () => {
+  supabase
+    .channel('sar_plans_live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'sar_plans' }, () => {
+      recallPlanDariSupabase()
+    })
+    .subscribe()
 }
 
 const bukaModalTambahKes = () => {
@@ -1756,6 +1757,7 @@ const initializeDashboard = async () => {
   await tarikDataKes()
   mulakanPresence()
   await recallPlanDariSupabase()
+  langganPelanSarRealtime()
   await muatTurunTelemetri()
   langganTelemetriMMEA()
   kemaskiniSenaraiAsetKes()
