@@ -739,11 +739,12 @@ const simulasiAktifId = ref(null)
 const paparanSimulasiKesAktif = computed(() => {
   if (!senaraiFailSimulasi.value || senaraiFailSimulasi.value.length === 0) return []
   const idKesAktifWilayah = senaraiKesAktifSahaja.value.map(k => String(k.id))
+  const targetId = String(selectedCaseId.value || 'ALL')
 
-  if (selectedCaseId.value === 'ALL' || !selectedCaseId.value) {
+  if (targetId === 'ALL') {
     return senaraiFailSimulasi.value.filter(s => s.caseId === 'ALL' || !s.caseId || idKesAktifWilayah.includes(String(s.caseId)))
   }
-  return senaraiFailSimulasi.value.filter(s => String(s.caseId) === String(selectedCaseId.value))
+  return senaraiFailSimulasi.value.filter(s => String(s.caseId) === targetId || s.caseId === 'ALL' || !s.caseId)
 })
 
 // WARNA-WARNA TEMA
