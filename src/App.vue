@@ -910,7 +910,11 @@ const paparanSRUKesAktif = computed(() => {
   if (selectedCaseId.value === 'ALL' || !selectedCaseId.value) {
     return senaraiMasterSRU.value
   }
-  return senaraiMasterSRU.value.filter(s => Number(s.caseId) === Number(selectedCaseId.value))
+  const targetId = Number(selectedCaseId.value)
+  return senaraiMasterSRU.value.filter(s => {
+    const sCaseId = Number(s.caseId)
+    return sCaseId === targetId || isNaN(sCaseId) || sCaseId === 0
+  })
 })
 
 const filteredMesejChat = computed(() => senaraiMesejChat.value)
@@ -1748,9 +1752,6 @@ const tarikDataKes = async () => {
     const { data, error } = await supabase.from('sar_incidents').select('*').order('id', { ascending: false })
     if (!error && data) {
       senaraiKes.value = data
-      if (senaraiKesAktifSahaja.value.length > 0 && selectedCaseId.value === 'ALL') {
-        selectedCaseId.value = senaraiKesAktifSahaja.value[0].id
-      }
     }
   } catch (err) {
     console.error("Gagal menarik data kes:", err)
@@ -1913,6 +1914,7 @@ watch(selectedCaseId, () => {
 })
 
 watch(paparanSRUKesAktif, () => {
+  tukarKesTaktikal()
   kemaskiniSenaraiAsetKes()
 })
 </script>
