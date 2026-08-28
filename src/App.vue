@@ -737,10 +737,13 @@ const senaraiFailSimulasi = ref([])
 const simulasiAktifId = ref(null)
 
 const paparanSimulasiKesAktif = computed(() => {
+  if (!senaraiFailSimulasi.value || senaraiFailSimulasi.value.length === 0) return []
+  const idKesAktifWilayah = senaraiKesAktifSahaja.value.map(k => String(k.id))
+
   if (selectedCaseId.value === 'ALL' || !selectedCaseId.value) {
-    return senaraiFailSimulasi.value
+    return senaraiFailSimulasi.value.filter(s => s.caseId === 'ALL' || !s.caseId || idKesAktifWilayah.includes(String(s.caseId)))
   }
-  return senaraiFailSimulasi.value.filter(s => s.caseId === selectedCaseId.value || s.caseId === 'ALL')
+  return senaraiFailSimulasi.value.filter(s => String(s.caseId) === String(selectedCaseId.value))
 })
 
 // WARNA-WARNA TEMA
@@ -941,9 +944,14 @@ const senaraiKesAktifSahaja = computed(() => {
 
 const paparanSRUKesAktif = computed(() => {
   if (!senaraiMasterSRU.value || senaraiMasterSRU.value.length === 0) return []
-  if (!selectedCaseId.value || selectedCaseId.value === 'ALL') {
-    return []
+  const idKesAktifWilayah = senaraiKesAktifSahaja.value.map(k => Number(k.id))
+
+  if (selectedCaseId.value === 'ALL' || !selectedCaseId.value) {
+    // Paparkan semua fail SAP bagi kes-kes yang aktif dalam wilayah ini
+    return senaraiMasterSRU.value.filter(s => idKesAktifWilayah.includes(Number(s.caseId)))
   }
+
+  // Jika kes spesifik dipilih, paparkan pelan bagi kes itu sahaja
   const targetId = Number(selectedCaseId.value)
   return senaraiMasterSRU.value.filter(s => Number(s.caseId) === targetId)
 })
