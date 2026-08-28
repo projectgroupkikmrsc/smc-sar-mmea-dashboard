@@ -138,7 +138,7 @@
                   📋 SAP
                 </button>
                 <button @click="activeLeftPanelTab = 'simulation'" :style="{ background: activeLeftPanelTab === 'simulation' ? '#f59e0b' : 'transparent', color: activeLeftPanelTab === 'simulation' ? '#000' : '#94a3b8' }" style="border:none; padding:8px 4px; border-radius:4px; font-size:11px; font-weight:800; cursor:pointer;">
-                  🌀 Drift (.nc)
+                  🌀 SIMULATION
                 </button>
               </div>
 
@@ -167,23 +167,56 @@
                 </div>
               </template>
 
-              <!-- TAB 2: DRIFT SIMULATION -->
+              <!-- TAB 2: SIMULATION (.nc) -->
               <template v-else>
-                <div style="background: #1e293b; border-radius: 6px; border: 1px solid #334155; border-top: 3px solid #f59e0b; padding: 12px; flex: 1; display: flex; flex-direction: column; gap: 10px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h4 style="margin: 0; font-size: 12px; color: #fbbf24; text-transform: uppercase;">🌀 DRIFT NETCDF</h4>
-                    <button v-if="driftSimData" @click="tutupDriftSimulasi" style="background: #4c1d15; color: #f87171; border: 1px solid #7f1d1d; border-radius: 4px; padding: 2px 6px; font-size: 9px; font-weight: bold; cursor: pointer;">✕ Buang</button>
-                  </div>
-                  
-                  <label style="border: 2px dashed #f59e0b; border-radius: 6px; padding: 16px 10px; text-align: center; color: #94a3b8; font-size: 11px; background-color: #0f172a; display: block; cursor: pointer; transition: 0.2s;">
-                    🌊 {{ driftFileName || 'Muat Naik particles.nc' }}
-                    <input type="file" accept=".nc,.hdf5,.h5" @change="bacaFailDriftNC" style="display: none;" />
+                <div v-if="activeStation !== 'MRCC Putrajaya'" style="background: #1e293b; border-radius: 6px; border: 1px solid #334155; border-top: 3px solid #f59e0b; padding: 12px; flex-shrink: 0;">
+                  <h4 style="margin: 0 0 8px 0; font-size: 12px; color: #fbbf24; text-transform: uppercase;">📤 UPLOAD SIMULATION</h4>
+                  <label style="border: 2px dashed #f59e0b; border-radius: 6px; padding: 14px 10px; text-align: center; color: #94a3b8; font-size: 11px; background-color: #0f172a; display: block; cursor: pointer; transition: 0.2s;">
+                    🌊 Klik Muat Naik Fail (.nc, .hdf5, .h5)
+                    <input type="file" multiple accept=".nc,.hdf5,.h5" @change="bacaFailDriftNC" style="display: none;" />
                   </label>
+                </div>
 
-                  <div v-if="driftSimData" style="background: #0f172a; border-radius: 6px; padding: 10px; border: 1px solid #334155; font-size: 10px; display: flex; flex-direction: column; gap: 6px;">
-                    <div style="display: flex; justify-content: space-between;"><span style="color:#94a3b8;">Partikel:</span><strong style="color:#38bdf8;">{{ driftSimData.numParticles.toLocaleString() }}</strong></div>
-                    <div style="display: flex; justify-content: space-between;"><span style="color:#94a3b8;">Langkah Masa:</span><strong style="color:#fbbf24;">{{ driftSimData.numTimeSteps }} langkah</strong></div>
-                    <div style="display: flex; justify-content: space-between;"><span style="color:#94a3b8;">Masa Semasa:</span><strong style="color:#4ade80;">{{ driftSimTimeStr || 'T0' }}</strong></div>
+                <div style="background: #1e293b; border-radius: 6px; border: 1px solid #334155; border-top: 3px solid #f59e0b; padding: 12px; flex: 1; display: flex; flex-direction: column;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h4 style="margin: 0; font-size: 12px; color: #fbbf24; text-transform: uppercase;">🌀 SIMULATION FILES</h4>
+                    <span style="font-size: 9px; color: #94a3b8;">{{ paparanSimulasiKesAktif.length }} Fail</span>
+                  </div>
+
+                  <div style="display: flex; flex-direction: column; gap: 6px; overflow-y: auto;">
+                    <div 
+                      v-for="sim in paparanSimulasiKesAktif" 
+                      :key="sim.id" 
+                      @click="pilihSimulasiUntukMain(sim)"
+                      :style="{ 
+                        borderLeft: simulasiAktifId === sim.id ? '4px solid #f59e0b' : '3px solid #475569',
+                        background: simulasiAktifId === sim.id ? '#1e1b4b' : '#0f172a',
+                        borderColor: simulasiAktifId === sim.id ? '#f59e0b' : '#334155'
+                      }"
+                      style="padding: 8px; border-radius: 4px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s;"
+                    >
+                      <div style="flex: 1; min-width: 0; padding-right: 6px;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                          <strong style="font-size: 11px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ sim.fileName }}</strong>
+                          <span v-if="simulasiAktifId === sim.id" style="background: #f59e0b; color: #000; font-size: 8px; font-weight: 900; padding: 1px 4px; border-radius: 3px;">AKTIF</span>
+                        </div>
+                        <div style="font-size: 9px; color: #93c5fd; margin-top: 2px;">
+                          {{ sim.numParticles.toLocaleString() }} partikel • {{ sim.numTimeSteps }} langkah
+                        </div>
+                      </div>
+                      <button 
+                        v-if="activeStation !== 'MRCC Putrajaya'" 
+                        @click.stop="padamFailSimulasi(sim)" 
+                        style="background: #4c1d15; color: #f87171; border: 1px solid #991b1b; padding: 2px 6px; font-size: 9px; border-radius: 3px; cursor: pointer;"
+                        title="Padam Fail Simulasi"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+
+                    <div v-if="paparanSimulasiKesAktif.length === 0" style="text-align: center; color: #64748b; font-size: 11px; margin-top: 10px;">
+                      Tiada fail simulasi dimuat naik.
+                    </div>
                   </div>
                 </div>
               </template>
@@ -283,30 +316,34 @@
             </div>
           </div>
 
-          <!-- 🌀 FLOATING DRIFT TIMELINE TOOLBAR (APABILA SIMULASI .NC AKTIF) -->
+          <!-- 🌀 FLOATING SIMULATION TIMELINE TOOLBAR (APABILA SIMULASI .NC AKTIF) -->
           <div 
             v-if="driftSimData" 
-            style="position: absolute; bottom: 44px; left: 50%; transform: translateX(-50%); z-index: 1005; background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(10px); border: 1.5px solid #f59e0b; border-radius: 8px; padding: 6px 14px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7); display: flex; align-items: center; gap: 12px; min-width: 500px; max-width: 90vw; animation: popupAnim 0.15s ease-out;"
+            style="position: absolute; bottom: 44px; left: 50%; transform: translateX(-50%); z-index: 1005; background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(10px); border: 1.5px solid #f59e0b; border-radius: 8px; padding: 8px 14px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7); display: flex; align-items: center; gap: 12px; min-width: 540px; max-width: 90vw; animation: popupAnim 0.15s ease-out;"
           >
-            <div style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 900; color: #fbbf24; white-space: nowrap;">
-              <span>🌀</span><span>DRIFT POC</span>
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <div style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 900; color: #fbbf24; white-space: nowrap;">
+                <span>🌀</span><span>SIMULATION POC</span>
+              </div>
+              <div style="font-size: 9px; color: #94a3b8; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                {{ driftFileName }}
+              </div>
             </div>
 
-            <button @click="togglePlayDrift" :style="{ background: isDriftPlaying ? '#ef4444' : '#10b981' }" style="color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;">
+            <button @click="togglePlayDrift" :style="{ background: isDriftPlaying ? '#ef4444' : '#10b981' }" style="color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; white-space: nowrap;">
               {{ isDriftPlaying ? '⏸ Jeda' : '▶ Main' }}
             </button>
 
             <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
-              <div style="display: flex; justify-content: space-between; font-size: 9px; color: #94a3b8; font-weight: bold;">
-                <span>T0</span>
-                <span style="color: #38bdf8;">Langkah {{ currentDriftStep + 1 }}/{{ driftSimData.numTimeSteps }} ({{ driftSimTimeStr }})</span>
-                <span>T{{ driftSimData.numTimeSteps }}</span>
+              <div style="display: flex; justify-content: space-between; font-size: 10px; font-weight: bold;">
+                <span style="color: #4ade80; font-family: monospace;">⏱️ Waktu: {{ driftSimTimeStr }}</span>
+                <span style="color: #38bdf8;">Langkah {{ currentDriftStep + 1 }}/{{ driftSimData.numTimeSteps }}</span>
               </div>
               <input type="range" min="0" :max="driftSimData.numTimeSteps - 1" v-model.number="currentDriftStep" @input="kemaskiniPaparanDrift(currentDriftStep)" style="width: 100%; accent-color: #f59e0b; cursor: pointer; margin: 0;" />
             </div>
 
             <div style="display: flex; gap: 2px; align-items: center;">
-              <button v-for="spd in [1, 2, 5]" :key="spd" @click="driftPlaySpeed = spd" :style="{ background: driftPlaySpeed === spd ? '#f59e0b' : '#1e293b', color: driftPlaySpeed === spd ? '#000' : '#94a3b8' }" style="border: 1px solid #475569; border-radius: 3px; padding: 2px 6px; font-size: 9px; font-weight: bold; cursor: pointer;">
+              <button v-for="spd in [1, 2, 5]" :key="spd" @click="driftPlaySpeed = spd" :style="{ background: driftPlaySpeed === spd ? '#f59e0b' : '#1e293b', color: driftPlaySpeed === spd ? '#000' : '#94a3b8' }" style="border: 1px solid #475569; border-radius: 3px; padding: 3px 6px; font-size: 9px; font-weight: bold; cursor: pointer;">
                 {{ spd }}x
               </button>
             </div>
@@ -655,13 +692,22 @@ const timelinePoints = ref([])
 const currentTimelineIndex = ref(0)
 const currentTimelineTime = ref('')
 
-// DRIFT STATE
+// DRIFT & SIMULATION STATE
 const driftSimData = ref(null)
 const driftFileName = ref('')
 const isDriftPlaying = ref(false)
 const currentDriftStep = ref(0)
 const driftPlaySpeed = ref(1)
 const driftSimTimeStr = ref('')
+const senaraiFailSimulasi = ref([])
+const simulasiAktifId = ref(null)
+
+const paparanSimulasiKesAktif = computed(() => {
+  if (selectedCaseId.value === 'ALL' || !selectedCaseId.value) {
+    return senaraiFailSimulasi.value
+  }
+  return senaraiFailSimulasi.value.filter(s => s.caseId === selectedCaseId.value || s.caseId === 'ALL')
+})
 
 // WARNA-WARNA TEMA
 const warnaTrekSRU = ['#06b6d4', '#f59e0b', '#ec4899', '#10b981', '#8b5cf6', '#3b82f6', '#f43f5e', '#14b8a6', '#eab308']
@@ -1291,24 +1337,88 @@ const sahkanPadamSRU = async () => {
 }
 
 // ============================================================================
-// 7. DRIFT SIMULATION (NETCDF-4 / HDF5 .NC)
+// 7. SIMULATION (.NC NETCDF-4 / HDF5) & PEMAIN SIMULASI
 // ============================================================================
-const bacaFailDriftNC = async (event) => {
-  const file = event.target.files?.[0]
-  if (!file) return
 
-  try {
-    const arrayBuffer = await file.arrayBuffer()
-    driftSimData.value = await readFullSARSimulation(arrayBuffer)
-    driftFileName.value = file.name
-    currentDriftStep.value = 0
-    isDriftPlaying.value = false
-    if (driftPlayTimer) clearInterval(driftPlayTimer)
-    kemaskiniPaparanDrift(0, true)
-  } catch (err) {
-    alert(`Ralat memuatkan fail .nc: ${err.message || 'Format tidak sah'}`)
-  } finally {
-    event.target.value = ''
+// Fungsi menukar nilai masa dalam dataset fail .nc kepada bentuk waktu (pukul berapa cth: 14:30:00)
+const kiraWaktuSebenarSimulasi = (simData, stepIndex) => {
+  if (!simData) return ''
+  const rawTimes = simData.rawTimes
+  if (rawTimes && Array.isArray(rawTimes) && rawTimes.length > stepIndex) {
+    const t = rawTimes[stepIndex]
+    if (typeof t === 'number' && !isNaN(t)) {
+      let dateObj = null
+      if (t > 1e11) dateObj = new Date(t) // milliseconds
+      else if (t > 1e8) dateObj = new Date(t * 1000) // seconds
+      if (dateObj && !isNaN(dateObj.getTime())) {
+        return dateObj.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+      }
+    } else if (typeof t === 'string' && t.trim()) {
+      const d = new Date(t)
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+      }
+      return t
+    }
+  }
+
+  // Fallback: jam berasaskan waktu permulaan 08:00:00 + langkah 20 minit
+  const baseDate = new Date()
+  baseDate.setHours(8, 0, 0, 0)
+  baseDate.setMinutes(baseDate.getMinutes() + (stepIndex * 20))
+  return baseDate.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+}
+
+const bacaFailDriftNC = async (event) => {
+  const files = event.target.files
+  if (!files || files.length === 0) return
+
+  for (let f = 0; f < files.length; f++) {
+    const file = files[f]
+    try {
+      const arrayBuffer = await file.arrayBuffer()
+      const parsedData = await readFullSARSimulation(arrayBuffer)
+      
+      const newSim = {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        caseId: selectedCaseId.value,
+        fileName: file.name,
+        simData: parsedData,
+        uploadTime: new Date().toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }),
+        numParticles: parsedData.numParticles || 0,
+        numTimeSteps: parsedData.numTimeSteps || 0
+      }
+
+      // Masukkan ke senarai fail simulasi
+      senaraiFailSimulasi.value.push(newSim)
+
+      // Aktifkan fail yang baru dimuat naik
+      pilihSimulasiUntukMain(newSim)
+    } catch (err) {
+      alert(`Ralat memuatkan fail ${file.name}: ${err.message || 'Format fail tidak sah'}`)
+    }
+  }
+
+  event.target.value = ''
+}
+
+const pilihSimulasiUntukMain = (sim) => {
+  if (!sim || !sim.simData) return
+  if (driftPlayTimer) clearInterval(driftPlayTimer)
+  
+  simulasiAktifId.value = sim.id
+  driftSimData.value = sim.simData
+  driftFileName.value = sim.fileName
+  currentDriftStep.value = 0
+  isDriftPlaying.value = false
+  
+  kemaskiniPaparanDrift(0, true)
+}
+
+const padamFailSimulasi = (sim) => {
+  senaraiFailSimulasi.value = senaraiFailSimulasi.value.filter(s => s.id !== sim.id)
+  if (simulasiAktifId.value === sim.id) {
+    tutupDriftSimulasi()
   }
 }
 
@@ -1319,8 +1429,8 @@ const kemaskiniPaparanDrift = (stepIndex, autoFit = false) => {
   const stepData = computeTimeStepPOC(driftSimData.value, stepIndex)
   currentDriftStep.value = stepIndex
   
-  const totalMins = stepIndex * 20
-  driftSimTimeStr.value = `+${Math.floor(totalMins / 60)}j ${totalMins % 60}m`
+  // Format masa dalam bentuk waktu (pukul berapa)
+  driftSimTimeStr.value = kiraWaktuSebenarSimulasi(driftSimData.value, stepIndex)
 
   const imgUrl = renderPOCToCanvasDataURL(stepData.grid, stepData.maxDensity)
   const bounds = stepData.bounds
@@ -1381,6 +1491,7 @@ const tutupDriftSimulasi = () => {
   isDriftPlaying.value = false
   driftSimData.value = null
   driftFileName.value = ''
+  simulasiAktifId.value = null
   currentDriftStep.value = 0
   if (driftLayerGroup) driftLayerGroup.clearLayers()
   driftImageOverlay = null
