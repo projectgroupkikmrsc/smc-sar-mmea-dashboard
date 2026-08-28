@@ -564,8 +564,6 @@
           <button @click="showLoadCaseModal = false" style="margin-top: 12px; width: 100%; padding: 8px; background: #334155; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Tutup</button>
         </div>
       </div>
-
-      <!-- MODAL TAMBAH KES BARU -->
       <div v-if="showAddCaseModal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(4px);">
         <div style="background: white; width: 420px; border-radius: 8px; padding: 20px; color: #1e293b;">
           <h3 style="margin-top: 0; font-size: 15px; font-weight: bold; color: #0f172a;">➕ Cipta Insiden SAR Baharu</h3>
@@ -1380,6 +1378,70 @@ const sahkanPadamSRU = async () => {
 // 7. SIMULATION (.NC NETCDF-4 / HDF5) & PEMAIN SIMULASI
 // ============================================================================
 
+// Helper IndexedDB untuk menyimpan fail simulasi .nc secara kekal dalam pelayar
+const DB_NAME = 'SMC_SAR_NC_DB'
+const DB_VERSION = 1
+const STORE_SIM = 'simulations_data'
+
+const bukaDBSimulasi = () => {
+  return new Promise((resolve) => {
+    try {
+      const request = indexedDB.open(DB_NAME, DB_VERSION)
+      request.onupgradeneeded = (e) => {
+        const db = e.target.result
+        if (!db.objectStoreNames.contains(STORE_SIM)) {
+          db.createObjectStore(STORE_SIM, { keyPath: 'id' })
+        }
+      }
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => resolve(null)
+    } catch (e) {
+      resolve(null)
+    }
+  })
+}
+
+const simpanSimulasiKeIndexedDB = async (simObj) => {
+  try {
+    const db = await bukaDBSimulasi()
+    if (!db) return
+    const tx = db.transaction(STORE_SIM, 'readwrite')
+    const store = tx.objectStore(STORE_SIM)
+    store.put(simObj)
+  } catch (e) {
+    console.warn("Ralat simpan simulasi ke IndexedDB:", e)
+  }
+}
+
+const padamSimulasiDariIndexedDB = async (id) => {
+  try {
+    const db = await bukaDBSimulasi()
+    if (!db) return
+    const tx = db.transaction(STORE_SIM, 'readwrite')
+    const store = tx.objectStore(STORE_SIM)
+    store.delete(id)
+  } catch (e) {
+    console.warn("Ralat padam simulasi dari IndexedDB:", e)
+  }
+}
+
+const muatSemuaSimulasiDariIndexedDB = async () => {
+  try {
+    const db = await bukaDBSimulasi()
+    if (!db) return []
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_SIM, 'readonly')
+      const store = tx.objectStore(STORE_SIM)
+      const req = store.getAll()
+      req.onsuccess = () => resolve(req.result || [])
+      req.onerror = () => resolve([])
+    })
+  } catch (e) {
+    console.warn("Ralat muat fail simulasi:", e)
+    return []
+  }
+}
+
 // Fungsi menukar nilai masa dalam dataset fail .nc kepada bentuk waktu (pukul berapa cth: 14:30:00)
 const kiraWaktuSebenarSimulasi = (simData, stepIndex) => {
   if (!simData) return ''
@@ -1420,8 +1482,8 @@ const bacaFailDriftNC = async (event) => {
       const parsedData = await readFullSARSimulation(arrayBuffer)
       
       const newSim = {
-        id: Date.now() + Math.floor(Math.random() * 1000),
-        caseId: selectedCaseId.value,
+        id: Date.now() + Math.floor(Math.random() * 1000) + f,
+        caseId: selectedCaseId.value || 'ALL',
         fileName: file.name,
         simData: parsedData,
         uploadTime: new Date().toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }),
@@ -1429,8 +1491,11 @@ const bacaFailDriftNC = async (event) => {
         numTimeSteps: parsedData.numTimeSteps || 0
       }
 
-      // Masukkan ke senarai fail simulasi
+      // Masukkan ke senarai reactive fail simulasi
       senaraiFailSimulasi.value.push(newSim)
+
+      // Simpan ke IndexedDB secara kekal
+      await simpanSimulasiKeIndexedDB(newSim)
 
       // Aktifkan fail yang baru dimuat naik
       pilihSimulasiUntukMain(newSim)
@@ -1455,8 +1520,9 @@ const pilihSimulasiUntukMain = (sim) => {
   kemaskiniPaparanDrift(0, true)
 }
 
-const padamFailSimulasi = (sim) => {
+const padamFailSimulasi = async (sim) => {
   senaraiFailSimulasi.value = senaraiFailSimulasi.value.filter(s => s.id !== sim.id)
+  await padamSimulasiDariIndexedDB(sim.id)
   if (simulasiAktifId.value === sim.id) {
     tutupDriftSimulasi()
   }
@@ -1639,7 +1705,6 @@ const muatTurunSejarahSRU = async () => {
       idSasaranKes = [Number(selectedCaseId.value)]
     }
 
-    // Pagination loop untuk menarik keseluruhan titik rekod tanpa sebarang had (Unlimited)
     const BATCH_SIZE = 1000
     let allPoints = []
     let from = 0
@@ -1662,13 +1727,12 @@ const muatTurunSejarahSRU = async () => {
         query = query.lte('created_at', new Date(filterMasaTamat.value).toISOString())
       }
 
-      // Susun kronologi menaik & ambil mengikut julat batch
       query = query.order('created_at', { ascending: true }).range(from, from + BATCH_SIZE - 1)
 
       const { data, error } = await query
 
       if (error) {
-        console.error("Ralat muat turun batch titik:", error)
+        console.error("Ralat muat turun batch:", error)
         alert("Ralat memuat turun sejarah pergerakan: " + error.message)
         break
       }
@@ -1727,23 +1791,28 @@ const kemaskiniPaparanTrekPeta = () => {
   trackHistoryLayer.clearLayers()
   senaraiSruSejarah.value.forEach((sru, idx) => {
     if (sru.isChecked && sru.coords && sru.coords.length > 0) {
-      const latlngs = sru.coords.map(c => [c.lat, c.lng])
-      const sruColor = warnaTrekSRU[idx % warnaTrekSRU.length]
-      L.polyline(latlngs, { color: sruColor, weight: 2.5, dashArray: '5, 5', opacity: 0.85 }).addTo(trackHistoryLayer)
+      const latLngs = sru.coords.map(c => [c.lat, c.lng])
+      const color = warnaTrekSRU[idx % warnaTrekSRU.length]
+      L.polyline(latLngs, { color: color, weight: 3, opacity: 0.85 }).addTo(trackHistoryLayer)
+      
+      const startPt = latLngs[0]
+      const endPt = latLngs[latLngs.length - 1]
+      L.circleMarker(startPt, { radius: 4, color: color, fillColor: '#ffffff', fillOpacity: 1 }).addTo(trackHistoryLayer)
+      L.circleMarker(endPt, { radius: 6, color: color, fillColor: color, fillOpacity: 1 }).addTo(trackHistoryLayer)
     }
   })
 }
 
 const bukaTimelinePlayback = () => {
   const pts = []
-  senaraiSruSejarah.value.filter(s => s.isChecked).forEach(s => {
-    if (s.coords && s.coords.length > 0) {
-      s.coords.forEach(c => pts.push(c))
+  senaraiSruSejarah.value.forEach(sru => {
+    if (sru.isChecked && sru.coords && sru.coords.length > 0) {
+      pts.push(...sru.coords)
     }
   })
 
   if (pts.length === 0) {
-    alert("⚠️ Tiada data titik sejarah yang dimuat turun. Sila klik butang '📥 Muat Turun Rekod (Load Track)' terlebih dahulu.")
+    alert("⚠️ Tiada titik koordinat dimuat turun untuk dimainkan. Sila tekan '📥 Muat Turun Rekod (Load Track)' terlebih dahulu.")
     return
   }
 
@@ -1754,40 +1823,24 @@ const bukaTimelinePlayback = () => {
   kemaskiniFrameReplay()
 }
 
-const tutupTimelinePlayback = () => {
-  if (replayTimer) clearInterval(replayTimer)
-  isPlaying.value = false
-  isTimelineOpen.value = false
-  if (replayLayer) replayLayer.clearLayers()
-  replayMarkers = {}
-}
-
 const togglePlayReplay = () => {
-  if (timelinePoints.value.length === 0) return
   isPlaying.value = !isPlaying.value
-
   if (isPlaying.value) {
-    if (currentTimelineIndex.value >= timelinePoints.value.length - 1) currentTimelineIndex.value = 0
-    const intervalMs = Math.max(80, Math.floor(400 / playbackSpeed.value))
+    if (currentTimelineIndex.value >= timelinePoints.value.length - 1) {
+      currentTimelineIndex.value = 0
+    }
+    const intervalMs = Math.max(50, Math.floor(300 / playbackSpeed.value))
     replayTimer = setInterval(() => {
       if (currentTimelineIndex.value < timelinePoints.value.length - 1) {
         currentTimelineIndex.value++
-        kemaskiniFrameReplay()
       } else {
         isPlaying.value = false
         clearInterval(replayTimer)
       }
+      kemaskiniFrameReplay()
     }, intervalMs)
   } else {
     if (replayTimer) clearInterval(replayTimer)
-  }
-}
-
-const stepReplay = (delta) => {
-  const target = currentTimelineIndex.value + delta
-  if (target >= 0 && target < timelinePoints.value.length) {
-    currentTimelineIndex.value = target
-    kemaskiniFrameReplay()
   }
 }
 
@@ -1948,6 +2001,13 @@ const initializeDashboard = async () => {
   mulakanPresence()
   await recallPlanDariSupabase()
   langganPelanSarRealtime()
+  
+  // Muat semula fail simulasi (.nc) yang pernah dimuat naik dari IndexedDB
+  const storedSims = await muatSemuaSimulasiDariIndexedDB()
+  if (storedSims && storedSims.length > 0) {
+    senaraiFailSimulasi.value = storedSims
+  }
+
   await muatTurunTelemetri()
   langganTelemetriMMEA()
   kemaskiniSenaraiAsetKes()
