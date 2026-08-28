@@ -951,7 +951,6 @@ const paparanSRUKesAktif = computed(() => {
 const filteredMesejChat = computed(() => senaraiMesejChat.value)
 
 // ============================================================================
-// 4. LEAFLET MAP INITIALIZATION & ALATAN MELUKIS
 // ============================================================================
 const initMap = async () => {
   let mapEl = document.getElementById('map')
@@ -1185,7 +1184,7 @@ const tukarKesTaktikal = () => {
       for (let i = 1; i < validBounds.length; i++) combined.extend(validBounds[i])
       mapInstance.fitBounds(combined, { padding: [50, 50] })
     } else {
-      if (activeStation.value === 'MRCC Putrajaya' || isAdmin.value) mapInstance.setView([4.5, 109.0], 5)
+      if (activeStation.value === 'MRCC Putrajaya' || activeStation.value === 'Admin System') mapInstance.setView([4.5, 109.0], 5)
       else if (activeStation.value === 'MRSC Kota Kinabalu' || activeStation.value === 'MRSC Kuching') mapInstance.setView([4.0, 114.0], 7)
       else mapInstance.setView([3.85, 103.5], 7)
     }
