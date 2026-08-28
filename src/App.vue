@@ -944,16 +944,14 @@ const senaraiKesAktifSahaja = computed(() => {
 
 const paparanSRUKesAktif = computed(() => {
   if (!senaraiMasterSRU.value || senaraiMasterSRU.value.length === 0) return []
-  const idKesAktifWilayah = senaraiKesAktifSahaja.value.map(k => Number(k.id))
+  const idKesAktifWilayah = senaraiKesAktifSahaja.value.map(k => String(k.id))
+  const targetId = String(selectedCaseId.value || 'ALL')
 
-  if (selectedCaseId.value === 'ALL' || !selectedCaseId.value) {
-    // Paparkan semua fail SAP bagi kes-kes yang aktif dalam wilayah ini
-    return senaraiMasterSRU.value.filter(s => idKesAktifWilayah.includes(Number(s.caseId)))
+  if (targetId === 'ALL') {
+    return senaraiMasterSRU.value.filter(s => idKesAktifWilayah.includes(String(s.caseId)))
   }
 
-  // Jika kes spesifik dipilih, paparkan pelan bagi kes itu sahaja
-  const targetId = Number(selectedCaseId.value)
-  return senaraiMasterSRU.value.filter(s => Number(s.caseId) === targetId)
+  return senaraiMasterSRU.value.filter(s => String(s.caseId) === targetId)
 })
 
 const filteredMesejChat = computed(() => senaraiMesejChat.value)
@@ -1225,7 +1223,7 @@ const ekstrakSatuKoordinat = (teks) => {
   return null
 }
 
-const bacaFailSAROPS = (event) => {
+const bacaFailSAROPS = async (event) => {
   if (!selectedCaseId.value || selectedCaseId.value === 'ALL') {
     alert("⚠️ Sila pilih satu kes spesifik terlebih dahulu sebelum memuat naik fail SAROPS!")
     event.target.value = ''
@@ -1236,14 +1234,15 @@ const bacaFailSAROPS = (event) => {
   if (!files || files.length === 0) return
   const currentActiveCaseId = Number(selectedCaseId.value)
 
+  const promises = []
+
   for (let f = 0; f < files.length; f++) {
     const file = files[f]
-    const namaFail = file.name
-    const extension = namaFail.split('.').pop().toLowerCase()
-    const reader = new FileReader()
+    promises.push((async () => {
+      const namaFail = file.name
+      const extension = namaFail.split('.').pop().toLowerCase()
+      const kandunganRAW = await file.text()
 
-    reader.onload = async (e) => {
-      const kandunganRAW = e.target.result
       let garisanLaluan = []
       let pt1 = null, pt2 = null, pt3 = null, pt4 = null
       let koordinatCenter = null, koordinatCSP = null
@@ -1354,14 +1353,18 @@ const bacaFailSAROPS = (event) => {
         sortie_waypoints: garisanLaluan,
         search_pattern: corakPenuh
       }])
-    }
-    reader.readAsText(file)
+    })())
   }
 
-  setTimeout(() => {
-    alert("🎯 Fail SAROPS diproses & dimuat naik ke Supabase!")
-    recallPlanDariSupabase()
-  }, 800)
+  try {
+    await Promise.all(promises)
+    await recallPlanDariSupabase()
+    tukarKesTaktikal()
+  } catch (err) {
+    console.error("Ralat memproses fail SAROPS:", err)
+  } finally {
+    event.target.value = ''
+  }
 }
 
 const bukaPopUpPadam = (sru) => {
