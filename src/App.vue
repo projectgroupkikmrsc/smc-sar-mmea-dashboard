@@ -941,14 +941,11 @@ const senaraiKesAktifSahaja = computed(() => {
 
 const paparanSRUKesAktif = computed(() => {
   if (!senaraiMasterSRU.value || senaraiMasterSRU.value.length === 0) return []
-  if (selectedCaseId.value === 'ALL' || !selectedCaseId.value) {
-    return senaraiMasterSRU.value
+  if (!selectedCaseId.value || selectedCaseId.value === 'ALL') {
+    return []
   }
   const targetId = Number(selectedCaseId.value)
-  return senaraiMasterSRU.value.filter(s => {
-    const sCaseId = Number(s.caseId)
-    return sCaseId === targetId || isNaN(sCaseId) || sCaseId === 0
-  })
+  return senaraiMasterSRU.value.filter(s => Number(s.caseId) === targetId)
 })
 
 const filteredMesejChat = computed(() => senaraiMesejChat.value)
