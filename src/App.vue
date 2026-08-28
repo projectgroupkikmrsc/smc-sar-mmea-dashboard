@@ -519,18 +519,46 @@
 
       <!-- LOAD CASE MODAL -->
       <div v-if="showLoadCaseModal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(4px);">
-        <div style="background: white; width: 460px; border-radius: 8px; padding: 18px; color: #1e293b; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);">
+        <div style="background: white; width: 480px; border-radius: 8px; padding: 18px; color: #1e293b; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h3 style="margin: 0; font-size: 15px; font-weight: bold; color: #0f172a;">📂 Arkib Insiden SAR</h3>
+            <div>
+              <h3 style="margin: 0; font-size: 15px; font-weight: bold; color: #0f172a;">📂 Arkib Insiden SAR</h3>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Pilih kes untuk memuatkan data taktikal & sejarah</div>
+            </div>
             <button @click="showLoadCaseModal = false" style="background:none; border:none; color:#64748b; font-size:16px; cursor:pointer;">✕</button>
           </div>
-          <div style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
-            <div v-for="oldKes in senaraiKes" :key="oldKes.id" @click="selectedCaseId = oldKes.id; tukarKesTaktikal(); showLoadCaseModal = false" style="padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.backgroundColor='#f1f5f9'" onmouseout="this.style.backgroundColor='transparent'">
-              <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; color: #0f172a;">
+          <div style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
+            <div 
+              v-for="oldKes in senaraiKes" 
+              :key="oldKes.id" 
+              @click="selectedCaseId = oldKes.id; tukarKesTaktikal(); showLoadCaseModal = false" 
+              :style="{ 
+                borderColor: (oldKes.status || '').toLowerCase() === 'active' ? '#86efac' : '#e2e8f0',
+                backgroundColor: (oldKes.status || '').toLowerCase() === 'active' ? '#f0fdf4' : '#fafafa'
+              }"
+              style="padding: 10px; border: 1.5px solid #e2e8f0; border-radius: 6px; cursor: pointer; transition: 0.2s;"
+            >
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: bold; color: #0f172a;">
                 <span>#{{ oldKes.id }} - {{ oldKes.case_name }}</span>
-                <span style="font-size: 10px; color: #2563eb; background: #eff6ff; padding: 1px 6px; border-radius: 4px;">{{ oldKes.region }}</span>
+                <div style="display: flex; gap: 4px; align-items: center;">
+                  <span style="font-size: 9px; color: #2563eb; background: #eff6ff; padding: 1px 6px; border-radius: 4px; border: 1px solid #bfdbfe;">
+                    {{ oldKes.region }}
+                  </span>
+                  <span 
+                    :style="{
+                      background: (oldKes.status || '').toLowerCase() === 'active' ? '#dcfce7' : '#f1f5f9',
+                      color: (oldKes.status || '').toLowerCase() === 'active' ? '#15803d' : '#64748b',
+                      borderColor: (oldKes.status || '').toLowerCase() === 'active' ? '#86efac' : '#cbd5e1'
+                    }"
+                    style="font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 4px; border: 1px solid; text-transform: uppercase;"
+                  >
+                    {{ (oldKes.status || '').toLowerCase() === 'active' ? '🟢 AKTIF' : '⚪ ' + (oldKes.status || 'SELESAI') }}
+                  </span>
+                </div>
               </div>
-              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Objek: {{ oldKes.search_object || 'Tiada' }} • Status: {{ oldKes.status }}</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 4px;">
+                No Kes: <strong>{{ oldKes.case_no || '-' }}</strong> • Objek: {{ oldKes.search_object || 'Tiada' }}
+              </div>
             </div>
           </div>
           <button @click="showLoadCaseModal = false" style="margin-top: 12px; width: 100%; padding: 8px; background: #334155; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Tutup</button>
@@ -1515,36 +1543,42 @@ const tutupDriftSimulasi = () => {
 // 8. SEJARAH PERGERAKAN & REPLAY TIMELINE PLAYBACK (ASET TRANSMIT MOBILE)
 // ============================================================================
 
-// Kemaskini senarai aset yang pernah transmit location menggunakan apps mobile di bawah kes aktif
+// Kemaskini senarai aset yang pernah transmit location menggunakan apps mobile di bawah KES AKTIF
 const kemaskiniSenaraiAsetKes = async () => {
   try {
     const asetUnik = new Set()
 
-    // 1. Dapatkan senarai bot_id unik dari rekod track history mengikut kes aktif
-    let query = supabase.from('sru_track_history').select('boat_id, case_id')
-    if (selectedCaseId.value !== 'ALL' && selectedCaseId.value) {
-      query = query.or(`case_id.eq.${Number(selectedCaseId.value)},case_id.is.null`)
+    // 1. Tentukan senarai ID kes aktif yang dibenarkan (bukan kes accomplished/lapuk)
+    const idKesAktifList = senaraiKesAktifSahaja.value.map(k => Number(k.id)).filter(id => !isNaN(id) && id > 0)
+    
+    let idSasaranKes = []
+    if (selectedCaseId.value === 'ALL' || !selectedCaseId.value) {
+      idSasaranKes = idKesAktifList
+    } else {
+      idSasaranKes = [Number(selectedCaseId.value)]
     }
 
-    const { data, error } = await query
-    if (!error && data) {
-      data.forEach(r => {
-        if (r.boat_id && r.boat_id.trim()) {
-          if (selectedCaseId.value === 'ALL' || !selectedCaseId.value) {
+    if (idSasaranKes.length > 0) {
+      // Dapatkan senarai bot_id unik dari rekod track history HANYA untuk kes aktif sasaran
+      const { data, error } = await supabase
+        .from('sru_track_history')
+        .select('boat_id, case_id')
+        .in('case_id', idSasaranKes)
+
+      if (!error && data) {
+        data.forEach(r => {
+          if (r.boat_id && r.boat_id.trim()) {
             asetUnik.add(r.boat_id.trim().toUpperCase())
-          } else {
-            if (Number(r.case_id) === Number(selectedCaseId.value) || !r.case_id) {
-              asetUnik.add(r.boat_id.trim().toUpperCase())
-            }
           }
-        }
-      })
+        })
+      }
     }
 
-    // 2. Semak juga bot yang sedang transmit secara live dalam telemetri realtime
+    // 2. Semak juga bot yang sedang transmit secara live dalam telemetri realtime di bawah kes aktif
     telemetriRealtime.value.forEach(t => {
       if (t.boat_id && t.boat_id.trim()) {
-        if (selectedCaseId.value === 'ALL' || !selectedCaseId.value || Number(t.case_id) === Number(selectedCaseId.value) || !t.case_id) {
+        const tCaseId = Number(t.case_id)
+        if (idSasaranKes.includes(tCaseId) || (selectedCaseId.value === 'ALL' && (!t.case_id || idKesAktifList.includes(tCaseId)))) {
           asetUnik.add(t.boat_id.trim().toUpperCase())
         }
       }
@@ -1580,6 +1614,7 @@ const resetFilterMasa = () => {
   filterMasaTamat.value = ''
 }
 
+// Fungsi memuat turun SEMUA titik track history tanpa had (Unlimited Pagination Loop)
 const muatTurunSejarahSRU = async () => {
   if (senaraiSruSejarah.value.length === 0) {
     await kemaskiniSenaraiAsetKes()
@@ -1596,64 +1631,90 @@ const muatTurunSejarahSRU = async () => {
 
   isMengecasSejarah.value = true
   try {
-    let query = supabase
-      .from('sru_track_history')
-      .select('*')
-      .in('boat_id', targetBoatIds)
-
-    if (selectedCaseId.value !== 'ALL' && selectedCaseId.value) {
-      query = query.or(`case_id.eq.${Number(selectedCaseId.value)},case_id.is.null`)
+    const idKesAktifList = senaraiKesAktifSahaja.value.map(k => Number(k.id)).filter(id => !isNaN(id) && id > 0)
+    let idSasaranKes = []
+    if (selectedCaseId.value === 'ALL' || !selectedCaseId.value) {
+      idSasaranKes = idKesAktifList
+    } else {
+      idSasaranKes = [Number(selectedCaseId.value)]
     }
 
-    if (filterMasaMula.value) {
-      query = query.gte('created_at', new Date(filterMasaMula.value).toISOString())
-    }
-    if (filterMasaTamat.value) {
-      query = query.lte('created_at', new Date(filterMasaTamat.value).toISOString())
-    }
+    // Pagination loop untuk menarik keseluruhan titik rekod tanpa sebarang had (Unlimited)
+    const BATCH_SIZE = 1000
+    let allPoints = []
+    let from = 0
+    let hasMore = true
 
-    // Tiada had limit (unlimited) - disusun kronologi menaik
-    query = query.order('created_at', { ascending: true })
+    while (hasMore) {
+      let query = supabase
+        .from('sru_track_history')
+        .select('*')
+        .in('boat_id', targetBoatIds)
 
-    const { data, error } = await query
+      if (idSasaranKes.length > 0) {
+        query = query.in('case_id', idSasaranKes)
+      }
 
-    if (error) {
-      alert("Ralat memuat turun sejarah pergerakan: " + error.message)
-      return
-    }
+      if (filterMasaMula.value) {
+        query = query.gte('created_at', new Date(filterMasaMula.value).toISOString())
+      }
+      if (filterMasaTamat.value) {
+        query = query.lte('created_at', new Date(filterMasaTamat.value).toISOString())
+      }
 
-    if (data) {
-      // Agregat koordinat mengikut boat_id
-      const ptsByBoat = {}
-      targetBoatIds.forEach(id => { ptsByBoat[id.toUpperCase()] = [] })
+      // Susun kronologi menaik & ambil mengikut julat batch
+      query = query.order('created_at', { ascending: true }).range(from, from + BATCH_SIZE - 1)
 
-      data.forEach(r => {
-        const bId = (r.boat_id || '').toUpperCase()
-        if (ptsByBoat[bId]) {
-          const lat = parseFloat(r.latitude)
-          const lng = parseFloat(r.longitude)
-          if (!isNaN(lat) && !isNaN(lng) && (lat !== 0 || lng !== 0)) {
-            ptsByBoat[bId].push({
-              lat,
-              lng,
-              time: r.created_at || r.timestamp || r.time,
-              boat_id: r.boat_id
-            })
-          }
+      const { data, error } = await query
+
+      if (error) {
+        console.error("Ralat muat turun batch titik:", error)
+        alert("Ralat memuat turun sejarah pergerakan: " + error.message)
+        break
+      }
+
+      if (data && data.length > 0) {
+        allPoints = allPoints.concat(data)
+        if (data.length < BATCH_SIZE) {
+          hasMore = false
+        } else {
+          from += BATCH_SIZE
         }
-      })
-
-      // Kemaskini setiap aset yang ditandakan
-      senaraiSruSejarah.value.forEach(s => {
-        const bId = s.boat_id.toUpperCase()
-        if (s.isChecked && ptsByBoat[bId]) {
-          s.coords = ptsByBoat[bId]
-          s.points_count = ptsByBoat[bId].length
-        }
-      })
-
-      kemaskiniPaparanTrekPeta()
+      } else {
+        hasMore = false
+      }
     }
+
+    // Agregat koordinat mengikut boat_id
+    const ptsByBoat = {}
+    targetBoatIds.forEach(id => { ptsByBoat[id.toUpperCase()] = [] })
+
+    allPoints.forEach(r => {
+      const bId = (r.boat_id || '').toUpperCase()
+      if (ptsByBoat[bId]) {
+        const lat = parseFloat(r.latitude)
+        const lng = parseFloat(r.longitude)
+        if (!isNaN(lat) && !isNaN(lng) && (lat !== 0 || lng !== 0)) {
+          ptsByBoat[bId].push({
+            lat,
+            lng,
+            time: r.created_at || r.timestamp || r.time,
+            boat_id: r.boat_id
+          })
+        }
+      }
+    })
+
+    // Kemaskini setiap aset yang ditandakan
+    senaraiSruSejarah.value.forEach(s => {
+      const bId = s.boat_id.toUpperCase()
+      if (s.isChecked && ptsByBoat[bId]) {
+        s.coords = ptsByBoat[bId]
+        s.points_count = ptsByBoat[bId].length
+      }
+    })
+
+    kemaskiniPaparanTrekPeta()
   } catch (err) {
     console.error("Ralat muatTurunSejarahSRU:", err)
   } finally {
