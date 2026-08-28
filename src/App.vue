@@ -374,27 +374,81 @@
             </table>
           </div>
 
-          <!-- TAB 2: HISTORY (SEJARAH PERGERAKAN) -->
-          <div v-show="activeRightSidebarTab === 'history'" style="flex: 1; display:flex; flex-direction:column; padding: 12px; overflow-y: auto; color: #1e293b;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <h4 style="margin: 0; font-size: 12px; font-weight: bold; color: #0f172a;">⏳ SEJARAH PERGERAKAN</h4>
-              <button @click="bukaTimelinePlayback" :disabled="senaraiSruSejarah.length === 0" style="background: #0284c7; color: white; border: none; padding: 3px 8px; font-size: 10px; border-radius: 4px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 3px;">
-                <span>⏱️</span><span>Replay Track</span>
+          <!-- TAB 2: HISTORY (SEJARAH PERGERAKAN MENGIKUT KES AKTIF) -->
+          <div v-show="activeRightSidebarTab === 'history'" style="flex: 1; display:flex; flex-direction:column; padding: 12px; overflow-y: auto; color: #1e293b; gap: 10px;">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <h4 style="margin: 0; font-size: 12px; font-weight: bold; color: #0f172a;">⏳ SEJARAH PERGERAKAN</h4>
+                <div style="font-size: 9px; color: #0284c7; font-weight: bold; margin-top: 2px;">
+                  Kes: {{ selectedCaseId === 'ALL' ? 'Semua Kes Aktif' : `#${selectedCaseId}` }}
+                </div>
+              </div>
+              <button 
+                @click="bukaTimelinePlayback" 
+                :disabled="totalLoadedPoints === 0" 
+                :style="{ background: totalLoadedPoints > 0 ? '#0284c7' : '#94a3b8', cursor: totalLoadedPoints > 0 ? 'pointer' : 'not-allowed' }"
+                style="color: white; border: none; padding: 4px 10px; font-size: 10px; border-radius: 4px; font-weight: bold; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+              >
+                <span>⏱️</span><span>Replay ({{ totalLoadedPoints }} pts)</span>
               </button>
             </div>
-            
-            <div style="display: flex; flex-direction: column; gap: 6px; overflow-y: auto;">
-              <div v-for="sru in senaraiSruSejarah" :key="sru.boat_id" style="display:flex; justify-content:space-between; align-items:center; padding:8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; font-size:11px;">
-                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
-                  <input type="checkbox" v-model="sru.isChecked" @change="kemaskiniPaparanTrekPeta" />
-                  <strong style="color: #0f172a;">{{ sru.boat_id }}</strong>
-                </label>
-                <span style="font-size:10px; color:#64748b; font-family: monospace;">{{ sru.points_count }} pts</span>
+
+            <!-- PENAPIS MASA MULA & TAMAT -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px;">
+              <div style="font-size: 10px; font-weight: bold; color: #475569; display: flex; justify-content: space-between; align-items: center;">
+                <span>📅 PENAPIS MASA</span>
+                <button v-if="filterMasaMula || filterMasaTamat" @click="resetFilterMasa" style="background: none; border: none; color: #ef4444; font-size: 9px; cursor: pointer; padding: 0;">Reset</button>
               </div>
-              <div v-if="senaraiSruSejarah.length === 0" style="text-align:center; color:#94a3b8; padding:30px 0; font-size:11px;">
-                Tiada trek sejarah direkodkan.
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                <div>
+                  <label style="display: block; font-size: 8px; font-weight: bold; color: #64748b; margin-bottom: 2px;">MULA (Dari):</label>
+                  <input type="datetime-local" v-model="filterMasaMula" style="width: 100%; font-size: 9px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 3px; background: #fff;" />
+                </div>
+                <div>
+                  <label style="display: block; font-size: 8px; font-weight: bold; color: #64748b; margin-bottom: 2px;">TAMAT (Hingga):</label>
+                  <input type="datetime-local" v-model="filterMasaTamat" style="width: 100%; font-size: 9px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 3px; background: #fff;" />
+                </div>
+              </div>
+              <div style="font-size: 8px; color: #94a3b8; font-style: italic;">
+                *Jika masa tidak dipilih, sistem akan memuat turun 1,000 titik terkini secara lalai.
               </div>
             </div>
+
+            <!-- BUTANG LOAD TRACK DATA -->
+            <button 
+              @click="muatTurunSejarahSRU" 
+              :disabled="isMengecasSejarah || senaraiSruSejarah.length === 0"
+              style="width: 100%; background: #2563eb; color: white; border: none; padding: 8px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 4px rgba(37,99,235,0.2);"
+            >
+              <span v-if="isMengecasSejarah">⏳ Memuat Turun Data...</span>
+              <span v-else>📥 Muat Turun Rekod (Load Track)</span>
+            </button>
+
+            <!-- SENARAI ASET KES BERKENAAN -->
+            <div style="display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1;">
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 2px;">
+                <span style="font-size: 10px; font-weight: bold; color: #64748b;">ASET KES ({{ senaraiSruSejarah.length }} Terlibat):</span>
+                <span style="font-size: 9px; color: #94a3b8;">Tandakan (✓) untuk muat turun</span>
+              </div>
+
+              <div v-for="sru in senaraiSruSejarah" :key="sru.boat_id" style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; font-size:11px;">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                  <input type="checkbox" v-model="sru.isChecked" @change="kemaskiniPaparanTrekPeta" style="accent-color: #2563eb; cursor: pointer;" />
+                  <strong style="color: #0f172a;">{{ sru.boat_id }}</strong>
+                </label>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span :style="{ color: sru.points_count > 0 ? '#16a34a' : '#94a3b8', fontWeight: sru.points_count > 0 ? 'bold' : 'normal' }" style="font-size:10px; font-family: monospace;">
+                    {{ sru.points_count > 0 ? `${sru.points_count.toLocaleString()} pts` : 'Belum Load' }}
+                  </span>
+                </div>
+              </div>
+
+              <div v-if="senaraiSruSejarah.length === 0" style="text-align:center; color:#94a3b8; padding:30px 10px; font-size:11px; background:#f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px;">
+                Tiada aset SRU didaftarkan untuk kes ini. Sila muat naik fail SAROPS atau pastikan ada bot aktif di radar.
+              </div>
+            </div>
+
           </div>
 
           <!-- TAB 3: COMM (MESEJ PUSAT OPERASI) -->
@@ -574,6 +628,16 @@ const showAddCaseModal = ref(false)
 const showDeleteModal = ref(false)
 const sruTargetToPadam = ref(null)
 const formAddKes = ref({ case_no: '', case_name: '', search_object: '' })
+
+// PENAPIS MASA SEJARAH (TRACK HISTORY FILTERS)
+const filterMasaMula = ref('')
+const filterMasaTamat = ref('')
+const isMengecasSejarah = ref(false)
+const totalLoadedPoints = computed(() => {
+  return senaraiSruSejarah.value
+    .filter(s => s.isChecked)
+    .reduce((acc, s) => acc + (s.coords ? s.coords.length : 0), 0)
+})
 
 // MAP TOOLS & LAYERS CONTROLS
 const teksCarianPeta = ref('')
@@ -1334,23 +1398,143 @@ const tutupDriftSimulasi = () => {
 }
 
 // ============================================================================
-// 8. SEJARAH PERGERAKAN & REPLAY TIMELINE PLAYBACK
+// 8. SEJARAH PERGERAKAN & REPLAY TIMELINE PLAYBACK (MENGIKUT KES AKTIF)
 // ============================================================================
+
+// Kemaskini senarai aset yang terlibat mengikut kes aktif yang dipilih
+const kemaskiniSenaraiAsetKes = () => {
+  const asetUnik = new Set()
+
+  // 1. Ambil nama SRU daripada pelan kes yang sedang aktif/dipilih
+  const sruKesList = paparanSRUKesAktif.value || []
+  sruKesList.forEach(sru => {
+    if (sru.nama && sru.nama.trim()) {
+      asetUnik.add(sru.nama.trim().toUpperCase())
+    }
+  })
+
+  // 2. Jika tiada SRU dalam pelan kes atau mod SEMUA KES, semak juga telemetri realtime yang sedang aktif
+  if (asetUnik.size === 0) {
+    telemetriRealtime.value.forEach(t => {
+      if (t.boat_id && t.boat_id.trim()) {
+        asetUnik.add(t.boat_id.trim().toUpperCase())
+      }
+    })
+  }
+
+  // Simpan status sedia ada jika aset telah di-load sebelum ini
+  const sediaAdaMap = {}
+  senaraiSruSejarah.value.forEach(s => {
+    sediaAdaMap[s.boat_id.toUpperCase()] = s
+  })
+
+  const senaraiBaru = Array.from(asetUnik).map(boat_id => {
+    if (sediaAdaMap[boat_id]) {
+      return sediaAdaMap[boat_id]
+    }
+    return {
+      boat_id: boat_id,
+      points_count: 0,
+      coords: [],
+      isChecked: true
+    }
+  })
+
+  senaraiSruSejarah.value = senaraiBaru
+  kemaskiniPaparanTrekPeta()
+}
+
+const resetFilterMasa = () => {
+  filterMasaMula.value = ''
+  filterMasaTamat.value = ''
+}
+
 const muatTurunSejarahSRU = async () => {
+  // Pastikan senarai aset adalah terkini mengikut kes
+  if (senaraiSruSejarah.value.length === 0) {
+    kemaskiniSenaraiAsetKes()
+  }
+
+  const targetBoatIds = senaraiSruSejarah.value
+    .filter(s => s.isChecked)
+    .map(s => s.boat_id)
+
+  if (targetBoatIds.length === 0) {
+    alert("⚠️ Sila tandakan (tick) sekurang-kurangnya satu aset untuk dimuat turun.")
+    return
+  }
+
+  isMengecasSejarah.value = true
   try {
-    const { data, error } = await supabase.from('sru_track_history').select('*').order('created_at', { ascending: true })
-    if (!error && data) {
-      const sruMap = {}
-      data.forEach(r => {
-        if (!sruMap[r.boat_id]) sruMap[r.boat_id] = { boat_id: r.boat_id, points_count: 0, coords: [], isChecked: true }
-        sruMap[r.boat_id].points_count++
-        sruMap[r.boat_id].coords.push({ lat: parseFloat(r.latitude), lng: parseFloat(r.longitude), time: r.created_at, boat_id: r.boat_id })
+    let query = supabase
+      .from('sru_track_history')
+      .select('*')
+      .in('boat_id', targetBoatIds)
+
+    if (filterMasaMula.value) {
+      query = query.gte('created_at', new Date(filterMasaMula.value).toISOString())
+    }
+    if (filterMasaTamat.value) {
+      query = query.lte('created_at', new Date(filterMasaTamat.value).toISOString())
+    }
+
+    // Jika tiada penapis masa mula & tamat dipilih, hadkan kepada 1000 titik terkini secara lalai
+    const tiadaFilterMasa = !filterMasaMula.value && !filterMasaTamat.value
+    if (tiadaFilterMasa) {
+      query = query.order('created_at', { ascending: false }).limit(1000)
+    } else {
+      query = query.order('created_at', { ascending: true })
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      alert("Ralat memuat turun sejarah pergerakan: " + error.message)
+      return
+    }
+
+    if (data) {
+      // Jika data diambil secara descending (1000 titik terkini), susun semula kronologi ascending
+      let sortedData = data
+      if (tiadaFilterMasa) {
+        sortedData = [...data].reverse()
+      }
+
+      // Agregat koordinat mengikut boat_id
+      const ptsByBoat = {}
+      targetBoatIds.forEach(id => { ptsByBoat[id.toUpperCase()] = [] })
+
+      sortedData.forEach(r => {
+        const bId = (r.boat_id || '').toUpperCase()
+        if (ptsByBoat[bId]) {
+          const lat = parseFloat(r.latitude)
+          const lng = parseFloat(r.longitude)
+          if (!isNaN(lat) && !isNaN(lng) && (lat !== 0 || lng !== 0)) {
+            ptsByBoat[bId].push({
+              lat,
+              lng,
+              time: r.created_at || r.timestamp || r.time,
+              boat_id: r.boat_id
+            })
+          }
+        }
       })
-      senaraiSruSejarah.value = Object.values(sruMap)
+
+      // Kemaskini setiap aset yang ditandakan
+      senaraiSruSejarah.value.forEach(s => {
+        const bId = s.boat_id.toUpperCase()
+        if (s.isChecked && ptsByBoat[bId]) {
+          s.coords = ptsByBoat[bId]
+          s.points_count = ptsByBoat[bId].length
+        }
+      })
+
       kemaskiniPaparanTrekPeta()
     }
   } catch (err) {
     console.error("Ralat muatTurunSejarahSRU:", err)
+  } finally {
+    isMengecasSejarah.value = false
   }
 }
 
@@ -1358,7 +1542,7 @@ const kemaskiniPaparanTrekPeta = () => {
   if (!trackHistoryLayer) return
   trackHistoryLayer.clearLayers()
   senaraiSruSejarah.value.forEach((sru, idx) => {
-    if (sru.isChecked && sru.coords.length > 0) {
+    if (sru.isChecked && sru.coords && sru.coords.length > 0) {
       const latlngs = sru.coords.map(c => [c.lat, c.lng])
       const sruColor = warnaTrekSRU[idx % warnaTrekSRU.length]
       L.polyline(latlngs, { color: sruColor, weight: 2.5, dashArray: '5, 5', opacity: 0.85 }).addTo(trackHistoryLayer)
@@ -1367,14 +1551,22 @@ const kemaskiniPaparanTrekPeta = () => {
 }
 
 const bukaTimelinePlayback = () => {
-  isTimelineOpen.value = true
   const pts = []
   senaraiSruSejarah.value.filter(s => s.isChecked).forEach(s => {
-    s.coords.forEach(c => pts.push(c))
+    if (s.coords && s.coords.length > 0) {
+      s.coords.forEach(c => pts.push(c))
+    }
   })
+
+  if (pts.length === 0) {
+    alert("⚠️ Tiada data titik sejarah yang dimuat turun. Sila klik butang '📥 Muat Turun Rekod (Load Track)' terlebih dahulu.")
+    return
+  }
+
   pts.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
   timelinePoints.value = pts
   currentTimelineIndex.value = 0
+  isTimelineOpen.value = true
   kemaskiniFrameReplay()
 }
 
@@ -1566,7 +1758,7 @@ const initializeDashboard = async () => {
   await recallPlanDariSupabase()
   await muatTurunTelemetri()
   langganTelemetriMMEA()
-  await muatTurunSejarahSRU()
+  kemaskiniSenaraiAsetKes()
   langganMesejRealtimeSupabase()
 }
 
@@ -1604,6 +1796,11 @@ onMounted(async () => {
 
 watch(selectedCaseId, () => {
   tukarKesTaktikal()
+  kemaskiniSenaraiAsetKes()
+})
+
+watch(paparanSRUKesAktif, () => {
+  kemaskiniSenaraiAsetKes()
 })
 </script>
 
