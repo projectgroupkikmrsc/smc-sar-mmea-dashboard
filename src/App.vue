@@ -94,7 +94,7 @@
         
         <!-- PETA LEAFLET -->
         <div style="position: relative; overflow: hidden; display: flex; flex-direction: column; min-height: 400px;">
-          <div id="map" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1;"></div>
+          <div id="map" :class="{ 'text-cursor': activeTool === 'text', 'pencil-cursor': activeTool && activeTool !== 'text', 'delete-cursor': isDeleteMode }" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1;"></div>
           
           <!-- Panel Kiri Taktikal -->
           <div :style="{
@@ -798,6 +798,16 @@ const toDDM = (deg, isLng) => {
 
 const formatLatLng = (value, isLat) => toDDM(value, !isLat)
 
+const kiraBearing = (lat1, lon1, lat2, lon2) => {
+  const toRad = d => d * Math.PI / 180
+  const toDeg = r => (r * 180 / Math.PI + 360) % 360
+  const φ1 = toRad(lat1), φ2 = toRad(lat2)
+  const Δλ = toRad(lon2 - lon1)
+  const y = Math.sin(Δλ) * Math.cos(φ2)
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ)
+  return Math.round(toDeg(Math.atan2(y, x)))
+}
+
 const formatMasaTitikReplay = (isoStr) => {
   if (!isoStr) return ''
   const d = new Date(isoStr)
@@ -1281,12 +1291,29 @@ const initMap = async () => {
 
       if (drawingStartPoint.value && activeTool.value) {
         tempDrawingLayer.clearLayers()
+        const startPt = drawingStartPoint.value
+        const currentPt = e.latlng
+
         if (activeTool.value === 'circle') {
-          L.circle(drawingStartPoint.value, { radius: drawingStartPoint.value.distanceTo(e.latlng), color: '#38bdf8', weight: 2, fillOpacity: 0.2 }).addTo(tempDrawingLayer)
+          const rad = startPt.distanceTo(currentPt)
+          const radNM = (rad / 1852).toFixed(2)
+          const radKM = (rad / 1000).toFixed(2)
+          const pCircle = L.circle(startPt, { radius: rad, color: '#38bdf8', weight: 2, fillOpacity: 0.2 }).addTo(tempDrawingLayer)
+          pCircle.bindTooltip(`⭕ Jejari: ${radNM} NM (${radKM} KM)`, { permanent: true, direction: 'center', className: 'custom-measure-tooltip' }).openTooltip()
         } else if (activeTool.value === 'rect') {
-          L.rectangle([drawingStartPoint.value, e.latlng], { color: '#fbbf24', weight: 2, fillOpacity: 0.2 }).addTo(tempDrawingLayer)
+          const p1 = L.latLng(startPt.lat, currentPt.lng)
+          const p2 = L.latLng(currentPt.lat, startPt.lng)
+          const wNM = (startPt.distanceTo(p1) / 1852).toFixed(2)
+          const hNM = (startPt.distanceTo(p2) / 1852).toFixed(2)
+          const pRect = L.rectangle([startPt, currentPt], { color: '#fbbf24', weight: 2, fillOpacity: 0.2 }).addTo(tempDrawingLayer)
+          pRect.bindTooltip(`📐 ${wNM} NM × ${hNM} NM`, { permanent: true, direction: 'center', className: 'custom-measure-tooltip' }).openTooltip()
         } else if (activeTool.value === 'line') {
-          L.polyline([drawingStartPoint.value, e.latlng], { color: '#ef4444', weight: 3 }).addTo(tempDrawingLayer)
+          const distM = startPt.distanceTo(currentPt)
+          const distNM = (distM / 1852).toFixed(2)
+          const distKM = (distM / 1000).toFixed(2)
+          const brg = kiraBearing(startPt.lat, startPt.lng, currentPt.lat, currentPt.lng)
+          const pLine = L.polyline([startPt, currentPt], { color: '#ef4444', weight: 3, dashArray: '4, 4' }).addTo(tempDrawingLayer)
+          pLine.bindTooltip(`📏 ${distNM} NM (${distKM} KM) | 🧭 ${brg}°`, { permanent: true, direction: 'center', className: 'custom-measure-tooltip' }).openTooltip()
         }
       }
     }
@@ -1298,21 +1325,81 @@ const initMap = async () => {
 
     if (activeTool.value === 'marker') {
       const coordText = `${toDDM(latlng.lat, false)} | ${toDDM(latlng.lng, true)}`
-      const m = L.marker(latlng).bindPopup(`📍 ${coordText}`).addTo(toolsLayer).openPopup()
-      m.on('click', (ev) => { if (isDeleteMode.value) toolsLayer.removeLayer(m) })
+      const m = L.marker(latlng).addTo(toolsLayer)
+      m.bindTooltip(`📍 ${coordText}`, { permanent: true, direction: 'top', className: 'custom-marker-tooltip' }).openTooltip()
+      m.bindPopup(`📍 <b>Kedudukan Ditanda:</b><br>${coordText}`)
+      m.on('click', () => { if (isDeleteMode.value) toolsLayer.removeLayer(m) })
       aktifkanTool(null)
       return
     }
 
     if (activeTool.value === 'text') {
-      const txt = prompt("Catatan teks carta:")
-      if (txt && txt.trim()) {
-        const t = L.marker(latlng, {
-          icon: L.divIcon({ html: `<div style="background:rgba(15,23,42,0.92); color:#fff; padding:3px 8px; border:1.5px dashed #38bdf8; border-radius:4px; font-size:11px; white-space:nowrap; box-shadow:0 3px 8px rgba(0,0,0,0.6);">📝 ${txt.trim()}</div>`, className: 'custom-label' })
-        }).addTo(toolsLayer)
-        t.on('click', () => { if (isDeleteMode.value) toolsLayer.removeLayer(t) })
-      }
+      const inputId = 'inline-input-' + Date.now()
+      const tempInputMarker = L.marker(latlng, {
+        icon: L.divIcon({
+          html: `
+            <div style="background:#ffffff; border:2px solid #0284c7; border-radius:4px; padding:3px 8px; box-shadow:0 6px 16px rgba(0,0,0,0.5); display:inline-flex; align-items:center; z-index:99999;">
+              <input 
+                id="${inputId}" 
+                type="text" 
+                placeholder="Taip catatan teks..." 
+                style="border:none; outline:none; background:transparent; color:#000000; font-size:12px; font-weight:bold; font-family:sans-serif; width:200px; padding:0; margin:0;"
+              />
+            </div>
+          `,
+          className: 'custom-inline-text-wrapper',
+          iconAnchor: [15, 15]
+        })
+      }).addTo(toolsLayer)
+
       aktifkanTool(null)
+
+      setTimeout(() => {
+        const inputEl = document.getElementById(inputId)
+        if (inputEl) {
+          inputEl.focus()
+
+          let isFinalized = false
+          const finalizeText = () => {
+            if (isFinalized) return
+            isFinalized = true
+            const val = inputEl.value ? inputEl.value.trim() : ''
+            try { toolsLayer.removeLayer(tempInputMarker) } catch (e) {}
+
+            if (val) {
+              const finalMarker = L.marker(latlng, {
+                icon: L.divIcon({
+                  html: `
+                    <div style="background:#ffffff; color:#000000; padding:4px 8px; border:1.5px solid #000000; border-radius:4px; font-size:11px; font-weight:800; font-family:sans-serif; white-space:nowrap; box-shadow:0 3px 8px rgba(0,0,0,0.4); display:inline-block; pointer-events:auto;">
+                      ${val}
+                    </div>
+                  `,
+                  className: 'custom-label',
+                  iconAnchor: [12, 14]
+                })
+              }).addTo(toolsLayer)
+
+              finalMarker.on('click', () => {
+                if (isDeleteMode.value) toolsLayer.removeLayer(finalMarker)
+              })
+            }
+          }
+
+          inputEl.addEventListener('keydown', (ke) => {
+            if (ke.key === 'Enter') {
+              ke.preventDefault()
+              finalizeText()
+            } else if (ke.key === 'Escape') {
+              isFinalized = true
+              try { toolsLayer.removeLayer(tempInputMarker) } catch (e) {}
+            }
+          })
+
+          inputEl.addEventListener('blur', () => {
+            setTimeout(finalizeText, 150)
+          })
+        }
+      }, 50)
       return
     }
 
@@ -1326,15 +1413,26 @@ const initMap = async () => {
 
       if (activeTool.value === 'circle') {
         const rad = startPt.distanceTo(endPt)
-        shape = L.circle(startPt, { radius: rad, color: '#38bdf8', weight: 2, fillOpacity: 0.25 })
-          .bindPopup(`⭕ Jejari: ${(rad/1852).toFixed(2)} NM (${(rad/1000).toFixed(2)} KM)`)
-          .addTo(toolsLayer)
+        const radNM = (rad / 1852).toFixed(2)
+        const radKM = (rad / 1000).toFixed(2)
+        shape = L.circle(startPt, { radius: rad, color: '#38bdf8', weight: 2, fillOpacity: 0.25 }).addTo(toolsLayer)
+        shape.bindTooltip(`⭕ Jejari: ${radNM} NM (${radKM} KM)`, { permanent: true, direction: 'center', className: 'custom-measure-tooltip' }).openTooltip()
+        shape.bindPopup(`⭕ <b>Bulatan Ukuran</b><br>Jejari: ${radNM} NM (${radKM} KM)`)
       } else if (activeTool.value === 'rect') {
+        const p1 = L.latLng(startPt.lat, endPt.lng)
+        const p2 = L.latLng(endPt.lat, startPt.lng)
+        const wNM = (startPt.distanceTo(p1) / 1852).toFixed(2)
+        const hNM = (startPt.distanceTo(p2) / 1852).toFixed(2)
         shape = L.rectangle([startPt, endPt], { color: '#fbbf24', weight: 2, fillOpacity: 0.25 }).addTo(toolsLayer)
+        shape.bindTooltip(`📐 ${wNM} NM × ${hNM} NM`, { permanent: true, direction: 'center', className: 'custom-measure-tooltip' }).openTooltip()
       } else if (activeTool.value === 'line') {
-        shape = L.polyline([startPt, endPt], { color: '#ef4444', weight: 3 })
-          .bindPopup(`📏 Jarak: ${(startPt.distanceTo(endPt)/1852).toFixed(2)} NM`)
-          .addTo(toolsLayer)
+        const distM = startPt.distanceTo(endPt)
+        const distNM = (distM / 1852).toFixed(2)
+        const distKM = (distM / 1000).toFixed(2)
+        const brg = kiraBearing(startPt.lat, startPt.lng, endPt.lat, endPt.lng)
+        shape = L.polyline([startPt, endPt], { color: '#ef4444', weight: 3 }).addTo(toolsLayer)
+        shape.bindTooltip(`📏 ${distNM} NM (${distKM} KM) | 🧭 ${brg}°`, { permanent: true, direction: 'center', className: 'custom-measure-tooltip' }).openTooltip()
+        shape.bindPopup(`📏 <b>Garisan Ukuran</b><br>Jarak: ${distNM} NM (${distKM} KM)<br>Bearing: ${brg}°`)
       }
 
       if (shape) {
@@ -2855,5 +2953,52 @@ watch(activeRightSidebarTab, (tab) => {
 
 .sidebar-tab-btn { border: none; padding: 8px 4px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; }
 .custom-label { background: none !important; border: none !important; }
+
+/* KURSOR PENSEL & PEMADAM UNTUK TOOLS LUKISAN PETA */
+.text-cursor, .text-cursor *, .text-cursor .leaflet-container, .text-cursor .leaflet-grab, .text-cursor .leaflet-interactive {
+  cursor: text !important;
+}
+
+.pencil-cursor, .pencil-cursor *, .pencil-cursor .leaflet-container, .pencil-cursor .leaflet-grab, .pencil-cursor .leaflet-interactive {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z'%3E%3C/path%3E%3C/svg%3E") 2 22, crosshair !important;
+}
+
+.delete-cursor, .delete-cursor *, .delete-cursor .leaflet-container, .delete-cursor .leaflet-interactive {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3 6 5 6 21 6'%3E%3C/polyline%3E%3Cpath d='M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'%3E%3C/path%3E%3C/svg%3E") 12 12, crosshair !important;
+}
+
+/* PERMANENT TOOLTIPS UNTUK ALAT LUKISAN / UKURAN */
+.custom-measure-tooltip {
+  background: rgba(15, 23, 42, 0.94) !important;
+  color: #38bdf8 !important;
+  border: 1.5px solid #0284c7 !important;
+  border-radius: 4px !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  padding: 3px 8px !important;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.6) !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+}
+.custom-measure-tooltip::before {
+  display: none !important;
+}
+
+.custom-marker-tooltip {
+  background: rgba(15, 23, 42, 0.94) !important;
+  color: #ffffff !important;
+  border: 1.5px solid #2563eb !important;
+  border-radius: 4px !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  padding: 2px 6px !important;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.6) !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+}
+.custom-marker-tooltip::before {
+  display: none !important;
+}
+
 @keyframes popupAnim { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 </style>
