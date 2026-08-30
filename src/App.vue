@@ -406,7 +406,7 @@
             <button @click="activeRightSidebarTab = 'history'; muatTurunSejarahSRU()" :style="{ background: activeRightSidebarTab === 'history' ? '#2563eb' : 'transparent', color: activeRightSidebarTab === 'history' ? '#fff' : '#94a3b8' }" class="sidebar-tab-btn">
               History
             </button>
-            <button @click="activeRightSidebarTab = 'communication'" :style="{ background: activeRightSidebarTab === 'communication' ? '#2563eb' : 'transparent', color: activeRightSidebarTab === 'communication' ? '#fff' : '#94a3b8' }" class="sidebar-tab-btn">
+            <button @click="activeRightSidebarTab = 'communication'; tarikMesejChatSupabase(); autoScrollChatKeBawah()" :style="{ background: activeRightSidebarTab === 'communication' ? '#2563eb' : 'transparent', color: activeRightSidebarTab === 'communication' ? '#fff' : '#94a3b8' }" class="sidebar-tab-btn">
               Comm
             </button>
           </div>
@@ -534,21 +534,57 @@
 
           </div>
 
-          <!-- TAB 3: COMM (MESEJ PUSAT OPERASI) -->
+          <!-- TAB 3: COMM (MESEJ KOMUNIKASI OPERASI MENGIKUT KES) -->
           <div v-show="activeRightSidebarTab === 'communication'" style="flex: 1; display: flex; flex-direction: column; padding: 12px; min-height: 0;">
-            <div class="chat-messages-container" style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
-              <div v-for="msg in filteredMesejChat" :key="msg.id" style="font-size: 11px; color: #1e293b; background: #ffffff; padding: 6px 8px; border-radius: 4px; border: 1px solid #e2e8f0;">
-                <div style="display: flex; justify-content: space-between; font-size: 9px; color: #64748b; margin-bottom: 2px;">
-                  <strong>{{ msg.sender }}</strong>
-                  <span>{{ formatMasaChat(msg.created_at) }}</span>
+            
+            <!-- HEADER INFO KES -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 8px; flex-shrink: 0;">
+              <div>
+                <h4 style="margin: 0; font-size: 12px; font-weight: bold; color: #0f172a;">💬 KOMUNIKASI KES</h4>
+                <div style="font-size: 9px; color: #0284c7; font-weight: bold; margin-top: 2px;">
+                  {{ selectedCaseId === 'ALL' ? '⚠️ Sila pilih kes terlebih dahulu' : `Kes #${selectedCaseId}` }}
                 </div>
-                <div style="color: #0f172a;">{{ msg.message }}</div>
               </div>
-              <div v-if="filteredMesejChat.length === 0" style="text-align: center; color: #94a3b8; margin: auto; font-size: 11px;">
-                Tiada mesej komunikasi.
-              </div>
+              <span v-if="selectedCaseId !== 'ALL'" style="font-size: 9px; background: #eff6ff; color: #2563eb; padding: 2px 6px; border-radius: 4px; font-weight: bold; border: 1px solid #bfdbfe;">
+                {{ filteredMesejChat.length }} Mesej
+              </span>
             </div>
-            <input type="text" v-model="inputMesejBaru" @keyup.enter="hantarMesejChatSupabase" placeholder="Taip mesej taktikal..." style="margin-top: 8px; width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11px;" />
+
+            <!-- CONTAINER MESEJ CHAT -->
+            <div ref="chatContainerRef" class="chat-messages-container" style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+              <template v-if="selectedCaseId === 'ALL'">
+                <div style="text-align: center; color: #94a3b8; margin: auto; font-size: 11px; padding: 20px 10px;">
+                  <div style="font-size: 24px; margin-bottom: 6px;">📂</div>
+                  <strong style="color: #64748b; display: block; margin-bottom: 4px;">Pilih Satu Kes Spesifik</strong>
+                  Sila pilih kes pada menu dropdown untuk melihat dan menghantar mesej komunikasi operasi kes tersebut.
+                </div>
+              </template>
+              <template v-else>
+                <div v-for="msg in filteredMesejChat" :key="msg.id || msg.created_at" style="font-size: 11px; color: #1e293b; background: #ffffff; padding: 6px 8px; border-radius: 4px; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                  <div style="display: flex; justify-content: space-between; font-size: 9px; color: #64748b; margin-bottom: 2px;">
+                    <strong style="color: #0284c7;">{{ msg.sender }}</strong>
+                    <span>{{ formatMasaChat(msg.created_at) }}</span>
+                  </div>
+                  <div style="color: #0f172a; word-break: break-word;">{{ msg.message }}</div>
+                </div>
+                <div v-if="filteredMesejChat.length === 0" style="text-align: center; color: #94a3b8; margin: auto; font-size: 11px;">
+                  Tiada rekod mesej untuk kes ini.
+                </div>
+              </template>
+            </div>
+
+            <!-- INPUT HANTAR MESEJ -->
+            <div style="margin-top: 8px;">
+              <input 
+                type="text" 
+                v-model="inputMesejBaru" 
+                @keyup.enter="hantarMesejChatSupabase" 
+                :disabled="selectedCaseId === 'ALL'"
+                :placeholder="selectedCaseId === 'ALL' ? 'Pilih kes spesifik dahulu untuk menaip...' : 'Taip mesej komunikasi kes... (Tekan Enter)'" 
+                :style="{ backgroundColor: selectedCaseId === 'ALL' ? '#f1f5f9' : '#ffffff', cursor: selectedCaseId === 'ALL' ? 'not-allowed' : 'text' }"
+                style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11px;" 
+              />
+            </div>
           </div>
 
         </div>
@@ -716,6 +752,20 @@ const toDDM = (deg, isLng) => {
 
 const formatLatLng = (value, isLat) => toDDM(value, !isLat)
 
+const formatMasaTitikReplay = (isoStr) => {
+  if (!isoStr) return ''
+  const d = new Date(isoStr)
+  if (isNaN(d.getTime())) return String(isoStr)
+  const pad = (n) => String(n).padStart(2, '0')
+  const day = pad(d.getDate())
+  const month = pad(d.getMonth() + 1)
+  const year = d.getFullYear()
+  const hours = pad(d.getHours())
+  const mins = pad(d.getMinutes())
+  const secs = pad(d.getSeconds())
+  return `${day}/${month}/${year} ${hours}:${mins}:${secs}`
+}
+
 // GLOBAL LEAFLET REFERENCES
 let mapInstance = null
 let toolsLayer = null
@@ -724,6 +774,7 @@ let sapLayerGroup = null
 let trackHistoryLayer = null
 let replayLayer = null
 let driftLayerGroup = null
+let mobileAlertLayerGroup = null
 let layerMSRRInstance = null
 let layerPelantarInstance = null
 let layerSeaMapInstance = null
@@ -758,7 +809,16 @@ const senaraiMasterSRU = ref([])
 const telemetriRealtime = ref([])
 const senaraiSruSejarah = ref([])
 const senaraiMesejChat = ref([])
+const muatSenaraiAlertDipadam = () => {
+  try {
+    const saved = localStorage.getItem('sar_deleted_mobile_alerts')
+    if (saved) return new Set(JSON.parse(saved))
+  } catch (e) {}
+  return new Set()
+}
+const senaraiAlertDipadam = ref(muatSenaraiAlertDipadam())
 const inputMesejBaru = ref('')
+const chatContainerRef = ref(null)
 const showLoadCaseModal = ref(false)
 const showAddCaseModal = ref(false)
 const showDeleteModal = ref(false)
@@ -1049,7 +1109,18 @@ const paparanSRUKesAktif = computed(() => {
   return senaraiMasterSRU.value.filter(s => String(s.caseId) === targetId)
 })
 
-const filteredMesejChat = computed(() => senaraiMesejChat.value)
+const filteredMesejChat = computed(() => {
+  if (!senaraiMesejChat.value || senaraiMesejChat.value.length === 0) return []
+  const targetId = String(selectedCaseId.value || 'ALL')
+
+  if (targetId === 'ALL') {
+    return []
+  }
+
+  return senaraiMesejChat.value.filter(msg => {
+    return String(msg.case_id) === targetId || (!msg.case_id && msg.chat_type !== 'global')
+  })
+})
 
 // ============================================================================
 // ============================================================================
@@ -1088,6 +1159,7 @@ const initMap = async () => {
   trackHistoryLayer = L.layerGroup().addTo(mapInstance)
   replayLayer = L.layerGroup().addTo(mapInstance)
   driftLayerGroup = L.layerGroup().addTo(mapInstance)
+  mobileAlertLayerGroup = L.layerGroup().addTo(mapInstance)
 
   mapInstance.on('mousemove', (e) => {
     if (e && e.latlng) {
@@ -1292,6 +1364,119 @@ const tukarKesTaktikal = () => {
   } catch (err) {
     console.warn("Ralat fitBounds:", err)
   }
+
+  // Auto paparkan tanda penemuan dan kecemasan bagi kes semasa
+  kemaskiniMarkerPenemuanDanKecemasan()
+}
+
+// FUNGSI AUTO-PLOT PENEMUAN & KECEMASAN DARI MESEJ APLIKASI MOBILE
+const kemaskiniMarkerPenemuanDanKecemasan = () => {
+  if (!mapInstance || !mobileAlertLayerGroup) return
+  mobileAlertLayerGroup.clearLayers()
+
+  if (!senaraiMesejChat.value || senaraiMesejChat.value.length === 0) return
+
+  const targetCaseId = String(selectedCaseId.value || 'ALL')
+  const idKesAktifList = senaraiKesAktifSahaja.value.map(k => String(k.id))
+
+  senaraiMesejChat.value.forEach(msg => {
+    if (!msg || !msg.message) return
+    const isDipadam = msg.id != null && (
+      senaraiAlertDipadam.value.has(msg.id) || 
+      senaraiAlertDipadam.value.has(String(msg.id)) || 
+      senaraiAlertDipadam.value.has(Number(msg.id))
+    )
+    if (isDipadam) return
+
+    if (targetCaseId !== 'ALL') {
+      if (String(msg.case_id) !== targetCaseId) return
+    } else {
+      if (msg.case_id && !idKesAktifList.includes(String(msg.case_id))) return
+    }
+
+    // Parse koordinat DDM (cth: 04 11.117N 100 54.701E)
+    const matchCoord = msg.message.match(/(\d{1,2})[\s\-]+([\d\.]+)\s*([NS])\s+(\d{1,3})[\s\-]+([\d\.]+)\s*([EW])/i)
+    if (!matchCoord) return
+
+    let lat = parseInt(matchCoord[1]) + parseFloat(matchCoord[2]) / 60
+    if (matchCoord[3].toUpperCase() === 'S') lat = -lat
+    let lon = parseInt(matchCoord[4]) + parseFloat(matchCoord[5]) / 60
+    if (matchCoord[6].toUpperCase() === 'W') lon = -lon
+
+    if (isNaN(lat) || isNaN(lon)) return
+
+    const isKecemasan = msg.message.includes('KECEMASAN') || msg.message.includes('MAYDAY') || msg.message.includes('MOB')
+    const isPenemuan = msg.message.includes('PENEMUAN') || msg.message.includes('SIGHTING')
+
+    if (!isKecemasan && !isPenemuan) return
+
+    const waktuStr = formatMasaTitikReplay(msg.created_at) || ''
+
+    if (isKecemasan) {
+      const iconKecemasan = L.divIcon({
+        html: `<div style="display:flex; flex-direction:column; align-items:center; transform:translate(-50%, -100%); cursor:pointer;">
+                 <div style="background:rgba(220,38,38,0.95); color:#fff; font-size:10px; font-weight:900; padding:2px 6px; border-radius:4px; border:1.5px solid #fff; box-shadow:0 0 10px rgba(239,68,68,0.8); white-space:nowrap; animation:webReplayPulse 1.5s infinite;">
+                   🚨 KECEMASAN (${msg.sender || 'SRU'})
+                 </div>
+                 <div style="width:2px; height:6px; background:#ef4444;"></div>
+                 <div style="width:7px; height:7px; border-radius:50%; background:#ef4444; border:1.5px solid #fff;"></div>
+               </div>`,
+        className: 'custom-label',
+        iconSize: [0, 0]
+      })
+      const m = L.marker([lat, lon], { icon: iconKecemasan }).addTo(mobileAlertLayerGroup)
+      m.bindPopup(`
+        <div style="font-family:sans-serif; font-size:11px; color:#1e293b; min-width:200px;">
+          <div style="font-weight:900; color:#dc2626; font-size:12px; margin-bottom:4px;">🚨 AMARAN KECEMASAN / MOB</div>
+          <div><b>Aset:</b> ${msg.sender || 'SRU'}</div>
+          <div><b>Waktu:</b> ${waktuStr}</div>
+          <div><b>Kedudukan:</b> ${toDDM(lat, false)} | ${toDDM(lon, true)}</div>
+          <div style="margin:5px 0; font-size:10px; color:#991b1b; background:#fef2f2; padding:4px 6px; border-radius:4px; border:1px solid #fecaca;">${msg.message}</div>
+          <button onclick="window.padamMarkerAlertManual && window.padamMarkerAlertManual(${msg.id})" style="width:100%; background:#ef4444; color:#fff; border:none; padding:4px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer;">🗑️ Padam Tanda Dari Peta</button>
+        </div>
+      `)
+    } else if (isPenemuan) {
+      const iconPenemuan = L.divIcon({
+        html: `<div style="display:flex; flex-direction:column; align-items:center; transform:translate(-50%, -100%); cursor:pointer;">
+                 <div style="background:rgba(234,179,8,0.95); color:#000; font-size:10px; font-weight:900; padding:2px 6px; border-radius:4px; border:1.5px solid #fff; box-shadow:0 0 10px rgba(245,158,11,0.8); white-space:nowrap;">
+                   📍 PENEMUAN (${msg.sender || 'SRU'})
+                 </div>
+                 <div style="width:2px; height:6px; background:#f59e0b;"></div>
+                 <div style="width:7px; height:7px; border-radius:50%; background:#f59e0b; border:1.5px solid #fff;"></div>
+               </div>`,
+        className: 'custom-label',
+        iconSize: [0, 0]
+      })
+      const m = L.marker([lat, lon], { icon: iconPenemuan }).addTo(mobileAlertLayerGroup)
+      m.bindPopup(`
+        <div style="font-family:sans-serif; font-size:11px; color:#1e293b; min-width:200px;">
+          <div style="font-weight:900; color:#d97706; font-size:12px; margin-bottom:4px;">📍 LOKASI PENEMUAN / SIGHTING</div>
+          <div><b>Dilapor Oleh:</b> ${msg.sender || 'SRU'}</div>
+          <div><b>Waktu:</b> ${waktuStr}</div>
+          <div><b>Kedudukan:</b> ${toDDM(lat, false)} | ${toDDM(lon, true)}</div>
+          <div style="margin:5px 0; font-size:10px; color:#92400e; background:#fffbeb; padding:4px 6px; border-radius:4px; border:1px solid #fde68a;">${msg.message}</div>
+          <button onclick="window.padamMarkerAlertManual && window.padamMarkerAlertManual(${msg.id})" style="width:100%; background:#ef4444; color:#fff; border:none; padding:4px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer;">🗑️ Padam Tanda Dari Peta</button>
+        </div>
+      `)
+    }
+  })
+}
+
+const padamMarkerAlertManual = (msgId) => {
+  if (msgId != null) {
+    senaraiAlertDipadam.value.add(msgId)
+    senaraiAlertDipadam.value.add(String(msgId))
+    senaraiAlertDipadam.value.add(Number(msgId))
+    try {
+      localStorage.setItem('sar_deleted_mobile_alerts', JSON.stringify(Array.from(senaraiAlertDipadam.value)))
+    } catch (e) {}
+  }
+  kemaskiniMarkerPenemuanDanKecemasan()
+  if (mapInstance) mapInstance.closePopup()
+}
+
+if (typeof window !== 'undefined') {
+  window.padamMarkerAlertManual = padamMarkerAlertManual
 }
 
 // ============================================================================
@@ -1989,20 +2174,6 @@ const tutupTimelinePlayback = () => {
   replayMarkers = {}
 }
 
-const formatMasaTitikReplay = (isoStr) => {
-  if (!isoStr) return ''
-  const d = new Date(isoStr)
-  if (isNaN(d.getTime())) return String(isoStr)
-  const pad = (n) => String(n).padStart(2, '0')
-  const day = pad(d.getDate())
-  const month = pad(d.getMonth() + 1)
-  const year = d.getFullYear()
-  const hours = pad(d.getHours())
-  const mins = pad(d.getMinutes())
-  const secs = pad(d.getSeconds())
-  return `${day}/${month}/${year} ${hours}:${mins}:${secs}`
-}
-
 const kemaskiniFrameReplay = () => {
   if (!replayLayer || timelinePoints.value.length === 0) return
   const cur = timelinePoints.value[currentTimelineIndex.value]
@@ -2210,23 +2381,82 @@ const formatMasaChat = (dateStr) => {
   return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
+const autoScrollChatKeBawah = async () => {
+  await nextTick()
+  setTimeout(() => {
+    if (chatContainerRef.value) {
+      chatContainerRef.value.scrollTop = chatContainerRef.value.scrollHeight
+    }
+  }, 60)
+}
+
+const tarikMesejChatSupabase = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('sar_messages')
+      .select('*')
+      .order('created_at', { ascending: true })
+      .limit(300)
+
+    if (!error && data) {
+      senaraiMesejChat.value = data
+      kemaskiniMarkerPenemuanDanKecemasan()
+      autoScrollChatKeBawah()
+    }
+  } catch (err) {
+    console.warn("Ralat memuat turun mesej chat COMM:", err)
+  }
+}
+
 const hantarMesejChatSupabase = async () => {
   if (!inputMesejBaru.value.trim()) return
+  if (!selectedCaseId.value || selectedCaseId.value === 'ALL') {
+    alert("⚠️ Sila pilih satu kes spesifik terlebih dahulu sebelum menghantar mesej!")
+    return
+  }
+
   const msgText = inputMesejBaru.value.trim()
+  const caseIdNum = Number(selectedCaseId.value)
   inputMesejBaru.value = ''
   
-  await supabase.from('sar_messages').insert([{
-    sender: activeStation.value || 'SMC HQ',
+  const senderName = activeStation.value || 'SMC Operator'
+  const newMsg = {
+    sender: senderName,
     message: msgText,
-    chat_type: 'global'
+    case_id: caseIdNum,
+    chat_type: 'case',
+    created_at: new Date().toISOString()
+  }
+
+  // Optimistic UI
+  senaraiMesejChat.value.push(newMsg)
+  kemaskiniMarkerPenemuanDanKecemasan()
+  autoScrollChatKeBawah()
+
+  const { error } = await supabase.from('sar_messages').insert([{
+    sender: senderName,
+    message: msgText,
+    case_id: caseIdNum,
+    chat_type: 'case'
   }])
+
+  if (error) {
+    console.error("Gagal menghantar mesej ke Supabase:", error)
+  }
 }
 
 const langganMesejRealtimeSupabase = () => {
   supabase
     .channel('sar_messages_live')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sar_messages' }, payload => {
-      if (payload.new) senaraiMesejChat.value.push(payload.new)
+      if (payload.new) {
+        const wujud = senaraiMesejChat.value.some(m => m.id === payload.new.id)
+        if (!wujud) {
+          senaraiMesejChat.value.push(payload.new)
+          kemaskiniMarkerPenemuanDanKecemasan()
+          autoScrollChatKeBawah()
+        }
+      }
     })
     .subscribe()
 }
@@ -2256,6 +2486,7 @@ const initializeDashboard = async () => {
   await muatTurunTelemetri()
   langganTelemetriMMEA()
   kemaskiniSenaraiAsetKes()
+  await tarikMesejChatSupabase()
   langganMesejRealtimeSupabase()
 }
 
@@ -2310,6 +2541,16 @@ watch(selectedCaseId, () => {
 watch(paparanSRUKesAktif, () => {
   tukarKesTaktikal()
   kemaskiniSenaraiAsetKes()
+})
+
+watch(filteredMesejChat, () => {
+  autoScrollChatKeBawah()
+})
+
+watch(activeRightSidebarTab, (tab) => {
+  if (tab === 'communication') {
+    autoScrollChatKeBawah()
+  }
 })
 </script>
 
