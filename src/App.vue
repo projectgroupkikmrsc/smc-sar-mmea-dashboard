@@ -898,7 +898,7 @@ const teksCarianPeta = ref('')
 const isLayerMenuOpen = ref(false)
 const showLayerMSRR = ref(false)
 const showLayerPelantar = ref(false)
-const showOpenSeaMap = ref(false)
+const showOpenSeaMap = ref(true)
 const selectedBaseLayer = ref('osm')
 
 // TIMELINE & REPLAY STATE
@@ -1269,12 +1269,83 @@ const initMap = async () => {
     dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }),
     satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 })
   }
-  layerSeaMapInstance = L.tileLayer('https://tiles.openseamap.org/seamap/{z}/{x}/{y}.png', { maxZoom: 18 })
+  layerSeaMapInstance = L.tileLayer('https://tiles.openseamap.org/seamap/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(mapInstance)
 
-  const msrrBarat = L.polyline([[6.4333, 100.1333], [6.5, 99.0], [7.25, 98.0], [10.0, 96.5], [6.0, 97.5], [1.28, 103.6], [6.23, 102.11]], { color: 'blue', weight: 2, dashArray: '5, 5' })
-  const msrrTimur = L.polyline([[2.0833, 109.6467], [6.28, 109.63], [10.0, 111.5], [7.68, 118.0], [4.16, 117.89]], { color: 'red', weight: 2, dashArray: '5, 5' })
+  // 1. LAYER MSRR (Sempadan Carian & Menyelamat Malaysia)
+  const msrrBarat = L.polyline([
+    [6.4333, 100.1333], // Titik 1: Sempadan Pantai Barat (Perlis/Thailand)
+    [6.5000, 99.0000],  // Titik 2
+    [7.2500, 98.0000],  // Titik 3
+    [10.0000, 96.5000], // Titik 4
+    [10.0000, 94.4167], // Titik 5
+    [6.0000, 94.4167],  // Titik 6
+    [6.0000, 97.5000],  // Titik 7
+    [1.6500, 102.1667], // Titik 8
+    [1.2833, 103.6000], // Titik 9
+    [1.2833, 103.6333], // Titik 10
+    [1.2833, 104.0833], // Titik 11
+    [1.2167, 104.2167], // Titik 12
+    [1.3833, 104.5000], // Titik 13
+    [1.9000, 105.0833], // Titik 14
+    [4.0000, 105.0833], // Titik 15
+    [6.0000, 106.0000], // Titik 16
+    [7.8333, 103.0500], // Titik 17
+    [6.2333, 102.1167]  // Titik 18: Sempadan Pantai Timur (Kelantan/Thailand)
+  ], { color: 'blue', weight: 2, dashArray: '5, 5' }).bindPopup("<b>MSRR:</b> Selat Melaka / Semenanjung")
+
+  const msrrTimur = L.polyline([
+    [2.0833, 109.6467], // Titik 19: Pantai Tg. Datu (Sempadan Sarawak)
+    [6.2833, 109.6333], // Titik 20
+    [10.0000, 111.5000], // Titik 21
+    [10.0000, 116.0000], // Titik 22
+    [7.6833, 116.0000], // Titik 23
+    [7.6833, 118.0000], // Titik 24
+    [6.3333, 118.0000], // Titik 25
+    [6.0000, 118.3333], // Titik 26
+    [6.0000, 118.9167], // Titik 27
+    [5.2667, 119.5833], // Titik 28
+    [4.7000, 119.0000], // Titik 29
+    [4.4000, 119.0000], // Titik 30
+    [4.4000, 120.0000], // Titik 31
+    [4.0000, 120.0000], // Titik 32
+    [4.0000, 118.0000], // Titik 33
+    [4.1667, 117.8995]  // Titik 34: Pantai Sempadan Sabah/Kalimantan
+  ], { color: 'red', weight: 2, dashArray: '5, 5' }).bindPopup("<b>MSRR:</b> Borneo (Sabah & Sarawak)")
+
   layerMSRRInstance = L.layerGroup([msrrBarat, msrrTimur])
-  layerPelantarInstance = L.layerGroup([L.polyline([[6.3, 99.4], [1.14, 103.5], [6.45, 102.16]], { color: 'green', weight: 2 })])
+
+  // 2. LAYER SEMPADAN PELANTAR BENUA (PETA BARU 1979)
+  // Titik 1 - 47 (Semenanjung)
+  const pelantarSemenanjung = L.polyline([
+    [6.3067, 99.4583], [6.2717, 99.3217], [6.3000, 99.1117], [5.9500, 98.0250],
+    [5.4500, 98.2917], [4.9283, 98.6917], [3.9933, 99.7267], [3.7900, 99.9167],
+    [2.8600, 101.0033], [2.6917, 101.2017], [2.2567, 101.7750], [1.9200, 102.2233],
+    [1.6867, 102.5833], [1.3250, 103.0650], [1.2500, 103.3800], [1.2242, 103.4467],
+    [1.1408, 103.5342], [1.1833, 103.5700], [1.2525, 103.5825], [1.2728, 103.6230],
+    [1.2642, 103.6017], [1.2938, 104.1250], [1.2903, 104.0483], [1.2883, 104.0767],
+    [1.2700, 104.1183], [1.2608, 104.1578], [1.2275, 104.2112], [1.2700, 104.2692],
+    [1.2750, 104.3300], [1.2592, 104.4742], [1.2825, 104.4888], [1.3983, 104.4917],
+    [1.6333, 104.8833], [1.9067, 105.0867], [2.3750, 105.0200], [2.9200, 104.8583],
+    [3.8350, 104.7750], [4.0500, 104.8650], [5.0783, 105.4800], [5.6767, 105.7850],
+    [6.0967, 105.8200], [6.8042, 104.5000], [7.8167, 103.0417], [7.1708, 102.4833],
+    [6.8333, 102.3533], [6.4633, 102.1600], [6.4583, 102.1667]
+  ], { color: 'green', weight: 2.5, opacity: 0.85 }).bindPopup("<b>Sempadan Pelantar Benua (1979):</b> Semenanjung")
+
+  // Titik 48 - 84 (Borneo: Sabah & Sarawak)
+  const pelantarBorneo = L.polyline([
+    [2.0833, 109.6467], [3.0000, 109.9083], [4.6667, 110.0333], [5.5200, 109.9833],
+    [6.3033, 109.6433], [7.1292, 111.5667], [8.3958, 112.5125], [8.7403, 113.2708],
+    [8.5653, 113.6500], [8.4070, 113.7958], [8.4072, 113.8737], [8.3958, 114.3305],
+    [8.5042, 114.4862], [8.4695, 114.8353], [8.9167, 115.1763], [8.8180, 115.6458],
+    [8.3320, 115.9013], [8.0250, 116.0583], [7.6667, 116.0000], [7.6667, 117.0000],
+    [7.4125, 117.4250], [6.8667, 117.9667], [6.2833, 117.9667], [6.0000, 118.3333],
+    [6.0000, 118.8333], [5.2667, 119.5833], [4.7000, 119.0000], [4.3833, 119.0000],
+    [4.3833, 120.0000], [3.0458, 120.2625], [3.0250, 119.8833], [3.1000, 118.9583],
+    [3.1445, 118.7695], [3.6500, 118.3667], [4.0608, 118.0183], [4.1333, 117.9492],
+    [4.1667, 117.8995]
+  ], { color: 'green', weight: 2.5, opacity: 0.85 }).bindPopup("<b>Sempadan Pelantar Benua (1979):</b> Borneo (Sabah & Sarawak)")
+
+  layerPelantarInstance = L.layerGroup([pelantarSemenanjung, pelantarBorneo])
 
   toolsLayer = L.featureGroup().addTo(mapInstance)
   tempDrawingLayer = L.layerGroup().addTo(mapInstance)
@@ -1474,6 +1545,9 @@ const tukarBaseLayer = (jenis) => {
   selectedBaseLayer.value = jenis
   Object.values(baseLayers).forEach(l => { if (mapInstance && mapInstance.hasLayer(l)) mapInstance.removeLayer(l) })
   if (mapInstance && baseLayers[jenis]) baseLayers[jenis].addTo(mapInstance).bringToBack()
+  if (mapInstance && showOpenSeaMap.value && !mapInstance.hasLayer(layerSeaMapInstance)) {
+    layerSeaMapInstance.addTo(mapInstance)
+  }
 }
 const togolLayerMSRR = () => { if (mapInstance) showLayerMSRR.value ? mapInstance.addLayer(layerMSRRInstance) : mapInstance.removeLayer(layerMSRRInstance) }
 const togolLayerPelantar = () => { if (mapInstance) showLayerPelantar.value ? mapInstance.addLayer(layerPelantarInstance) : mapInstance.removeLayer(layerPelantarInstance) }
