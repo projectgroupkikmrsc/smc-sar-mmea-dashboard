@@ -100,9 +100,12 @@ export function computeTimeStepPOC(simData, timeStepIndex = 0, rows = 64, cols =
   const safeIndex = Math.max(0, Math.min(timeStepIndex, numTimeSteps - 1));
 
   const offset = safeIndex * numParticles;
-  const lats = rawLats.subarray(offset, offset + numParticles);
-  const lngs = rawLngs.subarray(offset, offset + numParticles);
-  const probs = rawProbs ? rawProbs.subarray(offset, offset + numParticles) : null;
+  const typedLats = rawLats instanceof Float32Array ? rawLats : new Float32Array(rawLats || []);
+  const typedLngs = rawLngs instanceof Float32Array ? rawLngs : new Float32Array(rawLngs || []);
+  const lats = typedLats.subarray(offset, offset + numParticles);
+  const lngs = typedLngs.subarray(offset, offset + numParticles);
+  const typedProbs = rawProbs ? (rawProbs instanceof Float32Array ? rawProbs : new Float32Array(rawProbs)) : null;
+  const probs = typedProbs ? typedProbs.subarray(offset, offset + numParticles) : null;
 
   let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
   let validCount = 0;

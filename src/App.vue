@@ -196,11 +196,14 @@
                       style="padding: 8px; border-radius: 4px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s;"
                     >
                       <div style="flex: 1; min-width: 0; padding-right: 6px;">
-                        <div style="display: flex; align-items: center; gap: 6px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
                           <strong style="font-size: 11px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ sim.fileName }}</strong>
-                          <span v-if="simulasiAktifId === sim.id" style="background: #f59e0b; color: #000; font-size: 8px; font-weight: 900; padding: 1px 4px; border-radius: 3px;">AKTIF</span>
+                          <span v-if="simulasiAktifId === sim.id" style="background: #f59e0b; color: #000; font-size: 8px; font-weight: 900; padding: 1px 4px; border-radius: 3px; flex-shrink: 0;">AKTIF</span>
                         </div>
-                        <div style="font-size: 9px; color: #93c5fd; margin-top: 2px;">
+                        <div style="font-size: 10px; color: #38bdf8; font-family: monospace; font-weight: bold; margin-top: 3px;">
+                          🕒 Dicipta: {{ sim.createdDateStr || sim.uploadTime || '-' }}
+                        </div>
+                        <div style="font-size: 9px; color: #94a3b8; margin-top: 2px;">
                           {{ sim.numParticles.toLocaleString() }} partikel • {{ sim.numTimeSteps }} langkah
                         </div>
                       </div>
@@ -324,43 +327,70 @@
             </div>
           </div>
 
-          <!-- 🌀 FLOATING SIMULATION TIMELINE TOOLBAR (APABILA SIMULASI .NC AKTIF) -->
+          <!-- 🌀 SLIM DOCKED SIMULATION PLAYER TOOLBAR (KEKAL SEPANJANG MASA DI POSISI BAWAH PETA) -->
           <div 
-            v-if="driftSimData" 
-            style="position: absolute; bottom: 44px; left: 50%; transform: translateX(-50%); z-index: 1005; background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(10px); border: 1.5px solid #f59e0b; border-radius: 8px; padding: 8px 14px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7); display: flex; align-items: center; gap: 12px; min-width: 540px; max-width: 90vw; animation: popupAnim 0.15s ease-out;"
+            style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; z-index: 1005; background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(12px); border-top: 2px solid #f59e0b; padding: 2px 12px; box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.7); display: flex; align-items: center; gap: 10px; height: 35px;"
           >
-            <div style="display: flex; flex-direction: column; gap: 2px;">
-              <div style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 900; color: #fbbf24; white-space: nowrap;">
-                <span>🌀</span><span>SIMULATION POC</span>
-              </div>
-              <div style="font-size: 9px; color: #94a3b8; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                {{ driftFileName }}
-              </div>
-            </div>
-
-            <button @click="togglePlayDrift" :style="{ background: isDriftPlaying ? '#ef4444' : '#10b981' }" style="color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; white-space: nowrap;">
-              {{ isDriftPlaying ? '⏸ Jeda' : '▶ Main' }}
-            </button>
-
-            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
-              <div style="display: flex; justify-content: space-between; font-size: 10px; font-weight: bold;">
-                <span style="color: #4ade80; font-family: monospace;">⏱️ Waktu: {{ driftSimTimeStr }}</span>
-                <span style="color: #38bdf8;">Langkah {{ currentDriftStep + 1 }}/{{ driftSimData.numTimeSteps }}</span>
-              </div>
-              <input type="range" min="0" :max="driftSimData.numTimeSteps - 1" v-model.number="currentDriftStep" @input="kemaskiniPaparanDrift(currentDriftStep)" style="width: 100%; accent-color: #f59e0b; cursor: pointer; margin: 0;" />
-            </div>
-
-            <div style="display: flex; gap: 2px; align-items: center;">
-              <button v-for="spd in [1, 2, 5]" :key="spd" @click="driftPlaySpeed = spd" :style="{ background: driftPlaySpeed === spd ? '#f59e0b' : '#1e293b', color: driftPlaySpeed === spd ? '#000' : '#94a3b8' }" style="border: 1px solid #475569; border-radius: 3px; padding: 3px 6px; font-size: 9px; font-weight: bold; cursor: pointer;">
-                {{ spd }}x
+            <!-- JIKA ADA DATA SIMULASI AKTIF -->
+            <template v-if="driftSimData">
+              <!-- Butang Play/Pause (Simbol Sahaja) -->
+              <button 
+                @click="togglePlayDrift" 
+                :style="{ background: isDriftPlaying ? '#ef4444' : '#10b981' }" 
+                style="color: white; border: none; width: 24px; height: 24px; border-radius: 4px; font-size: 10px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;"
+                :title="isDriftPlaying ? 'Jeda Simulasi' : 'Mainkan Simulasi'"
+              >
+                {{ isDriftPlaying ? '⏸' : '▶' }}
               </button>
-            </div>
 
-            <button @click="tutupDriftSimulasi" style="background: #334155; color: #f87171; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer; font-weight: bold;" title="Tutup Simulasi">✕</button>
+              <!-- Tarikh & Waktu Slider di Sebelah Kiri -->
+              <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; font-family: monospace; white-space: nowrap; flex-shrink: 0;">
+                <span style="color: #38bdf8;">📅 {{ driftSimDateStr || '---' }}</span>
+                <span style="color: #4ade80;">⏱️ {{ driftSimTimeStr || '---' }}</span>
+              </div>
+
+              <!-- Slider Range Bar Penuh -->
+              <div style="flex: 1; display: flex; align-items: center; min-width: 0;">
+                <input 
+                  type="range" 
+                  min="0" 
+                  :max="Math.max(0, (driftSimData.numTimeSteps || 1) - 1)" 
+                  v-model.number="currentDriftStep" 
+                  @input="kemaskiniPaparanDrift(currentDriftStep)" 
+                  style="width: 100%; accent-color: #f59e0b; cursor: pointer; margin: 0; height: 5px;" 
+                />
+              </div>
+
+              <!-- Speed Controls (1x, 2x, 5x) -->
+              <div style="display: flex; gap: 2px; align-items: center; background: #020617; padding: 1px 2px; border-radius: 3px; border: 1px solid #334155; flex-shrink: 0;">
+                <button 
+                  v-for="spd in [1, 2, 5]" 
+                  :key="spd" 
+                  @click="driftPlaySpeed = spd" 
+                  :style="{ background: driftPlaySpeed === spd ? '#f59e0b' : 'transparent', color: driftPlaySpeed === spd ? '#000' : '#94a3b8' }" 
+                  style="border: none; border-radius: 2px; padding: 1px 5px; font-size: 9px; font-weight: bold; cursor: pointer;"
+                >
+                  {{ spd }}x
+                </button>
+              </div>
+            </template>
+
+            <!-- JIKA TIADA FAIL SIMULASI DIMUAT NAIK -->
+            <template v-else>
+              <button disabled style="background: #334155; color: #64748b; border: none; width: 24px; height: 24px; border-radius: 4px; font-size: 10px; cursor: not-allowed; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                ▶
+              </button>
+              <div style="font-size: 10px; color: #94a3b8; font-weight: bold; display: flex; align-items: center; gap: 6px;">
+                <span style="color: #f59e0b;">ℹ️</span>
+                <span>Sila muat naik fail particle (.nc) di tab SIMULATION terlebih dahulu untuk memainkan simulasi.</span>
+              </div>
+            </template>
           </div>
 
           <!-- BOTTOM-RIGHT LIVE COORDINATES (PENJEJAK KURSOR TETIKUS) -->
-          <div style="position: absolute; bottom: 8px; right: 8px; z-index: 1000; background: rgba(15, 23, 42, 0.95); border: 1.5px solid #38bdf8; color: #38bdf8; font-family: monospace; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 4px; pointer-events: none; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.6); backdrop-filter: blur(8px);">
+          <div 
+            style="position: absolute; bottom: 42px; right: 8px; z-index: 1000; background: rgba(15, 23, 42, 0.95); border: 1.5px solid #38bdf8; color: #38bdf8; font-family: monospace; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 4px; pointer-events: none; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.6); backdrop-filter: blur(8px);"
+          >
             🌐 {{ currentLat }} | {{ currentLng }}
           </div>
         </div>
@@ -769,6 +799,7 @@ const isDriftPlaying = ref(false)
 const currentDriftStep = ref(0)
 const driftPlaySpeed = ref(1)
 const driftSimTimeStr = ref('')
+const driftSimDateStr = ref('')
 const senaraiFailSimulasi = ref([])
 const simulasiAktifId = ref(null)
 
@@ -780,6 +811,8 @@ const paparanSimulasiKesAktif = computed(() => {
   if (targetId === 'ALL') {
     return senaraiFailSimulasi.value.filter(s => s.caseId === 'ALL' || !s.caseId || idKesAktifWilayah.includes(String(s.caseId)))
   }
+
+  // Paparkan fail bagi kes terpilih ini serta fail yang pernah dimuat naik dalam sistem
   return senaraiFailSimulasi.value.filter(s => String(s.caseId) === targetId || s.caseId === 'ALL' || !s.caseId)
 })
 
@@ -1511,38 +1544,56 @@ const muatSemuaSimulasiDariIndexedDB = async () => {
   }
 }
 
-// Fungsi menukar nilai masa dalam dataset fail .nc kepada bentuk waktu (pukul berapa cth: 14:30:00)
+// Fungsi menukar nilai masa dalam dataset fail .nc kepada bentuk Tarikh dan Masa sebenar
 const kiraWaktuSebenarSimulasi = (simData, stepIndex) => {
-  if (!simData) return ''
+  if (!simData) return { tarikh: '', masa: '' }
   const rawTimes = simData.rawTimes
+  const createdTs = simData.createdTimestamp || Date.now()
+  const refDate = new Date(createdTs)
+  let dateObj = null
+
   if (rawTimes && Array.isArray(rawTimes) && rawTimes.length > stepIndex) {
     const t = rawTimes[stepIndex]
     if (typeof t === 'number' && !isNaN(t)) {
-      let dateObj = null
-      if (t > 1e11) dateObj = new Date(t) // milliseconds
-      else if (t > 1e8) dateObj = new Date(t * 1000) // seconds
-      if (dateObj && !isNaN(dateObj.getTime())) {
-        return dateObj.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+      if (t > 1e11) {
+        dateObj = new Date(t)
+      } else if (t > 1e8) {
+        dateObj = new Date(t * 1000)
+      } else {
+        dateObj = new Date(refDate.getTime() + (t * 60 * 1000))
       }
     } else if (typeof t === 'string' && t.trim()) {
       const d = new Date(t)
-      if (!isNaN(d.getTime())) {
-        return d.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
-      }
-      return t
+      if (!isNaN(d.getTime())) dateObj = d
     }
   }
 
-  // Fallback: jam berasaskan waktu permulaan 08:00:00 + langkah 20 minit
-  const baseDate = new Date()
-  baseDate.setHours(8, 0, 0, 0)
-  baseDate.setMinutes(baseDate.getMinutes() + (stepIndex * 20))
-  return baseDate.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+  // Jika tarikh dari dataset adalah tahun lapuk (< 2020 cth 1996), selaraskan tahun, bulan & hari mengikut tarikh fail SAROPS dicipta
+  if (dateObj && !isNaN(dateObj.getTime())) {
+    if (dateObj.getFullYear() < 2020) {
+      dateObj.setFullYear(refDate.getFullYear(), refDate.getMonth(), refDate.getDate())
+    }
+  } else {
+    // Fallback: gunakan tarikh fail dicipta + stepIndex * 20 minit
+    dateObj = new Date(refDate.getTime() + (stepIndex * 20 * 60 * 1000))
+  }
+
+  const pad = (n) => String(n).padStart(2, '0')
+  const tStr = `${pad(dateObj.getDate())}/${pad(dateObj.getMonth() + 1)}/${dateObj.getFullYear()}`
+  const mStr = `${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}:${pad(dateObj.getSeconds())}`
+  return { tarikh: tStr, masa: mStr }
 }
 
 const bacaFailDriftNC = async (event) => {
+  if (!selectedCaseId.value || selectedCaseId.value === 'ALL') {
+    alert("⚠️ Sila pilih satu kes spesifik terlebih dahulu sebelum memuat naik fail Simulasi (.nc)!")
+    event.target.value = ''
+    return
+  }
+
   const files = event.target.files
   if (!files || files.length === 0) return
+  const currentCaseId = String(selectedCaseId.value)
 
   for (let f = 0; f < files.length; f++) {
     const file = files[f]
@@ -1550,23 +1601,33 @@ const bacaFailDriftNC = async (event) => {
       const arrayBuffer = await file.arrayBuffer()
       const parsedData = await readFullSARSimulation(arrayBuffer)
       
+      const fileCreatedTimestamp = file.lastModified || Date.now()
+      const createdDateObj = new Date(fileCreatedTimestamp)
+      const pad = (n) => String(n).padStart(2, '0')
+      const createdDateStr = `${pad(createdDateObj.getDate())}/${pad(createdDateObj.getMonth() + 1)}/${createdDateObj.getFullYear()} ${pad(createdDateObj.getHours())}:${pad(createdDateObj.getMinutes())}:${pad(createdDateObj.getSeconds())}`
+
+      parsedData.createdTimestamp = fileCreatedTimestamp
+
       const newSim = {
         id: Date.now() + Math.floor(Math.random() * 1000) + f,
-        caseId: selectedCaseId.value || 'ALL',
+        caseId: currentCaseId,
         fileName: file.name,
         simData: parsedData,
-        uploadTime: new Date().toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }),
+        createdTimestamp: fileCreatedTimestamp,
+        createdDateStr: createdDateStr,
+        uploadTime: createdDateStr,
         numParticles: parsedData.numParticles || 0,
         numTimeSteps: parsedData.numTimeSteps || 0
       }
 
       // Masukkan ke senarai reactive fail simulasi
-      senaraiFailSimulasi.value.push(newSim)
+      senaraiFailSimulasi.value.unshift(newSim)
+      senaraiFailSimulasi.value.sort((a, b) => (b.createdTimestamp || b.id || 0) - (a.createdTimestamp || a.id || 0))
 
       // Simpan ke IndexedDB secara kekal
       await simpanSimulasiKeIndexedDB(newSim)
 
-      // Aktifkan fail yang baru dimuat naik
+      // Sentiasa mainkan fail simulasi yang baru dimuat naik untuk kes ini
       pilihSimulasiUntukMain(newSim)
     } catch (err) {
       alert(`Ralat memuatkan fail ${file.name}: ${err.message || 'Format fail tidak sah'}`)
@@ -1580,6 +1641,10 @@ const pilihSimulasiUntukMain = (sim) => {
   if (!sim || !sim.simData) return
   if (driftPlayTimer) clearInterval(driftPlayTimer)
   
+  if (sim.createdTimestamp && !sim.simData.createdTimestamp) {
+    sim.simData.createdTimestamp = sim.createdTimestamp
+  }
+
   simulasiAktifId.value = sim.id
   driftSimData.value = sim.simData
   driftFileName.value = sim.fileName
@@ -1604,8 +1669,10 @@ const kemaskiniPaparanDrift = (stepIndex, autoFit = false) => {
   const stepData = computeTimeStepPOC(driftSimData.value, stepIndex)
   currentDriftStep.value = stepIndex
   
-  // Format masa dalam bentuk waktu (pukul berapa)
-  driftSimTimeStr.value = kiraWaktuSebenarSimulasi(driftSimData.value, stepIndex)
+  // Format tarikh dan masa dalam bentuk yang kemas
+  const wInfo = kiraWaktuSebenarSimulasi(driftSimData.value, stepIndex)
+  driftSimDateStr.value = wInfo.tarikh
+  driftSimTimeStr.value = wInfo.masa
 
   const imgUrl = renderPOCToCanvasDataURL(stepData.grid, stepData.maxDensity)
   const bounds = stepData.bounds
@@ -1616,25 +1683,11 @@ const kemaskiniPaparanDrift = (stepIndex, autoFit = false) => {
   if (stepData.distressPos && !driftDistressMarker) {
     const dPos = [stepData.distressPos.lat, stepData.distressPos.lon]
     const lkpIcon = L.divIcon({
-      html: `<div style="background:rgba(220,38,38,0.95); color:#fff; font-size:11px; font-weight:900; padding:2px 6px; border-radius:4px; border:1.5px solid #fff; white-space:nowrap; transform:translateY(-14px);">🚨 LKP / DATUM</div>`,
+      html: `<div style="color:#ef4444; font-size:12px; font-weight:900; text-shadow: 0 0 3px #000, 0 0 6px #000, 0 0 9px #000; white-space:nowrap; transform:translateY(-14px);">🚨 LKP</div>`,
       className: 'custom-label',
-      iconAnchor: [40, 0]
+      iconAnchor: [20, 0]
     })
     driftDistressMarker = L.marker(dPos, { icon: lkpIcon }).addTo(driftLayerGroup)
-  }
-
-  if (stepData.peakPOC) {
-    const peakPos = [stepData.peakPOC.lat, stepData.peakPOC.lon]
-    if (driftPeakMarker) {
-      driftPeakMarker.setLatLng(peakPos)
-    } else {
-      const peakIcon = L.divIcon({
-        html: `<div style="background:rgba(234,179,8,0.95); color:#000; font-size:10px; font-weight:900; padding:2px 6px; border-radius:4px; border:1.5px solid #fff; white-space:nowrap; transform:translateY(-14px);">⭐ PEAK POC</div>`,
-        className: 'custom-label',
-        iconAnchor: [35, 0]
-      })
-      driftPeakMarker = L.marker(peakPos, { icon: peakIcon }).addTo(driftLayerGroup)
-    }
   }
 
   if (autoFit && bounds && mapInstance) mapInstance.fitBounds(bounds, { padding: [40, 40] })
@@ -2196,6 +2249,7 @@ const initializeDashboard = async () => {
   // Muat semula fail simulasi (.nc) yang pernah dimuat naik dari IndexedDB
   const storedSims = await muatSemuaSimulasiDariIndexedDB()
   if (storedSims && storedSims.length > 0) {
+    storedSims.sort((a, b) => (b.createdTimestamp || b.id || 0) - (a.createdTimestamp || a.id || 0))
     senaraiFailSimulasi.value = storedSims
   }
 
@@ -2240,6 +2294,17 @@ onMounted(async () => {
 watch(selectedCaseId, () => {
   tukarKesTaktikal()
   kemaskiniSenaraiAsetKes()
+
+  // Selaraskan pemain simulasi mengikut kes yang dipilih (automatik mainkan fail simulasi terkini kes tersebut)
+  const listSimKes = paparanSimulasiKesAktif.value
+  if (listSimKes.length > 0) {
+    const wujud = listSimKes.some(s => s.id === simulasiAktifId.value)
+    if (!wujud) {
+      pilihSimulasiUntukMain(listSimKes[0])
+    }
+  } else {
+    tutupDriftSimulasi()
+  }
 })
 
 watch(paparanSRUKesAktif, () => {
