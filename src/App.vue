@@ -403,11 +403,14 @@
               <span :style="{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: telemetriRealtime.length > 0 ? '#22c55e' : '#64748b', display: 'inline-block', marginRight: '4px' }"></span>
               Active ({{ telemetriRealtime.length }})
             </button>
-            <button @click="activeRightSidebarTab = 'history'; muatTurunSejarahSRU()" :style="{ background: activeRightSidebarTab === 'history' ? '#2563eb' : 'transparent', color: activeRightSidebarTab === 'history' ? '#fff' : '#94a3b8' }" class="sidebar-tab-btn">
+            <button @click="activeRightSidebarTab = 'history'; kemaskiniSenaraiAsetKes().then(() => muatTurunSejarahSRU())" :style="{ background: activeRightSidebarTab === 'history' ? '#2563eb' : 'transparent', color: activeRightSidebarTab === 'history' ? '#fff' : '#94a3b8' }" class="sidebar-tab-btn">
               History
             </button>
-            <button @click="activeRightSidebarTab = 'communication'; tarikMesejChatSupabase(); autoScrollChatKeBawah()" :style="{ background: activeRightSidebarTab === 'communication' ? '#2563eb' : 'transparent', color: activeRightSidebarTab === 'communication' ? '#fff' : '#94a3b8' }" class="sidebar-tab-btn">
+            <button @click="activeRightSidebarTab = 'communication'; unreadCommCount = 0; tarikMesejChatSupabase(); autoScrollChatKeBawah()" :style="{ background: activeRightSidebarTab === 'communication' ? '#2563eb' : 'transparent', color: activeRightSidebarTab === 'communication' ? '#fff' : '#94a3b8' }" class="sidebar-tab-btn" style="position: relative; display: flex; align-items: center; justify-content: center; gap: 4px;">
               Comm
+              <span v-if="unreadCommCount > 0 && activeRightSidebarTab !== 'communication'" style="background: #ef4444; color: #ffffff; font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 9999px; line-height: 1; border: 1px solid #fff;">
+                {{ unreadCommCount }}
+              </span>
             </button>
           </div>
 
@@ -589,6 +592,49 @@
 
         </div>
 
+      </div>
+
+      <!-- FLOATING TOAST NOTIFICATIONS (MESEJ, KECEMASAN, SIGHTING) -->
+      <div v-if="senaraiNotifikasi.length > 0" style="position: fixed; top: 52px; right: 350px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; max-width: 380px; width: calc(100vw - 380px); pointer-events: none;">
+        <div 
+          v-for="notif in senaraiNotifikasi" 
+          :key="notif.id"
+          style="pointer-events: auto; border-radius: 6px; padding: 10px 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); font-family: sans-serif; animation: popupAnim 0.25s ease-out; display: flex; flex-direction: column; gap: 4px; border: 1.5px solid;"
+          :style="{
+            backgroundColor: notif.type === 'kecemasan' ? '#7f1d1d' : (notif.type === 'penemuan' ? '#78350f' : '#0f172a'),
+            borderColor: notif.type === 'kecemasan' ? '#ef4444' : (notif.type === 'penemuan' ? '#f59e0b' : '#38bdf8'),
+            color: '#ffffff'
+          }"
+        >
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="font-size: 11px; display: flex; align-items: center; gap: 5px;">
+              <span v-if="notif.type === 'kecemasan'" style="animation: webReplayPulse 1s infinite;">🚨</span>
+              <span v-else-if="notif.type === 'penemuan'">📍</span>
+              <span v-else>💬</span>
+              {{ notif.title }}
+            </strong>
+            <button @click="buangNotifikasi(notif.id)" style="background: none; border: none; color: #94a3b8; font-size: 14px; cursor: pointer; padding: 0 4px; line-height: 1;">✕</button>
+          </div>
+          <div style="font-size: 10px; opacity: 0.95; word-break: break-word; line-height: 1.3;">
+            <strong style="color: #38bdf8;">{{ notif.sender }}:</strong> {{ notif.message }}
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 4px;">
+            <button 
+              v-if="notif.lat && notif.lon" 
+              @click="fokusNotifikasiPeta(notif)" 
+              style="background: #2563eb; color: white; border: none; padding: 3px 8px; border-radius: 4px; font-size: 9px; font-weight: bold; cursor: pointer;"
+            >
+              🎯 Lihat di Peta
+            </button>
+            <button 
+              v-if="notif.type === 'mesej'" 
+              @click="bukaTabCommDariNotifikasi(notif)" 
+              style="background: #0284c7; color: white; border: none; padding: 3px 8px; border-radius: 4px; font-size: 9px; font-weight: bold; cursor: pointer;"
+            >
+              💬 Buka Comm
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- LOAD CASE MODAL -->
@@ -817,6 +863,8 @@ const muatSenaraiAlertDipadam = () => {
   return new Set()
 }
 const senaraiAlertDipadam = ref(muatSenaraiAlertDipadam())
+const senaraiNotifikasi = ref([])
+const unreadCommCount = ref(0)
 const inputMesejBaru = ref('')
 const chatContainerRef = ref(null)
 const showLoadCaseModal = ref(false)
@@ -1016,6 +1064,71 @@ const kemaskiniMarkerSRUAtasPeta = () => {
 
     const currentPos = L.latLng(lat, lng)
     const key = tele.boat_id || tele.id
+    const targetCaseId = String(selectedCaseId.value || 'ALL')
+
+    // Cari pelan SAP yang sepadan dengan nama bot
+    const padanPelan = senaraiMasterSRU.value.find(p => {
+      if (!p.nama || !tele.boat_id) return false
+      const namaPelan = p.nama.trim().toUpperCase()
+      const namaBot = tele.boat_id.trim().toUpperCase()
+      const padanNama = namaPelan === namaBot || namaPelan.includes(namaBot) || namaBot.includes(namaPelan)
+      if (targetCaseId !== 'ALL') {
+        return padanNama && String(p.caseId) === targetCaseId
+      }
+      return padanNama
+    })
+
+    if (padanPelan && padanPelan.csp_coord && Array.isArray(padanPelan.csp_coord) && !isNaN(padanPelan.csp_coord[0]) && !isNaN(padanPelan.csp_coord[1])) {
+      const cspPos = L.latLng(padanPelan.csp_coord[0], padanPelan.csp_coord[1])
+      const distM = currentPos.distanceTo(cspPos)
+      const distNM = (distM / 1852).toFixed(2)
+      const speedKts = parseFloat(tele.speed) || 0
+
+      let etaText = '---'
+      if (parseFloat(distNM) < 0.15) {
+        etaText = 'SAMPAI DI CSP'
+      } else if (speedKts > 0.5) {
+        const totalMinutes = Math.round((parseFloat(distNM) / speedKts) * 60)
+        if (totalMinutes < 60) {
+          etaText = `${totalMinutes}m`
+        } else {
+          const h = Math.floor(totalMinutes / 60)
+          const m = totalMinutes % 60
+          etaText = `${h}j ${m}m`
+        }
+      } else {
+        etaText = 'KAPAL STATIK'
+      }
+
+      tele.csp = distNM
+      tele.eta = etaText
+
+      // Lukis / kemaskini garisan putus-putus ke CSP jika jarak > 0.15 NM
+      if (parseFloat(distNM) >= 0.15) {
+        if (!sruCspLinesOnMap[key]) {
+          sruCspLinesOnMap[key] = L.polyline([currentPos, cspPos], {
+            color: '#0284c7',
+            weight: 2,
+            dashArray: '6, 8',
+            opacity: 0.85
+          }).addTo(mapInstance)
+        } else {
+          sruCspLinesOnMap[key].setLatLngs([currentPos, cspPos])
+        }
+      } else if (sruCspLinesOnMap[key]) {
+        mapInstance.removeLayer(sruCspLinesOnMap[key])
+        delete sruCspLinesOnMap[key]
+      }
+    } else {
+      tele.csp = '---'
+      tele.eta = '---'
+      if (sruCspLinesOnMap[key]) {
+        mapInstance.removeLayer(sruCspLinesOnMap[key])
+        delete sruCspLinesOnMap[key]
+      }
+    }
+
+    const infoTooltip = `🛥️ SRU: <b>${tele.boat_id}</b><br>⚡ Kelajuan: ${tele.speed || '0.0'} kts<br>🧭 Arah: ${tele.course ? tele.course + '°' : '---'}<br>📍 Ke CSP: ${tele.csp !== '---' ? tele.csp + ' NM' : '---'}<br>⏳ ETA: ${tele.eta}`
 
     if (!sruMarkersOnMap[key]) {
       const newMarker = L.circleMarker(currentPos, {
@@ -1026,11 +1139,11 @@ const kemaskiniMarkerSRUAtasPeta = () => {
         weight: 2
       }).addTo(mapInstance)
 
-      newMarker.bindTooltip(`🛥️ SRU: <b>${tele.boat_id}</b><br>⚡ Kelajuan: ${tele.speed || '0.0'} kts<br>🧭 Arah: ${tele.course ? tele.course + '°' : '---'}`, { direction: 'top' })
+      newMarker.bindTooltip(infoTooltip, { direction: 'top' })
       sruMarkersOnMap[key] = newMarker
     } else {
       sruMarkersOnMap[key].setLatLng(currentPos)
-      sruMarkersOnMap[key].setTooltipContent(`🛥️ SRU: <b>${tele.boat_id}</b><br>⚡ Kelajuan: ${tele.speed || '0.0'} kts<br>🧭 Arah: ${tele.course ? tele.course + '°' : '---'}`)
+      sruMarkersOnMap[key].setTooltipContent(infoTooltip)
     }
   })
 }
@@ -1367,6 +1480,7 @@ const tukarKesTaktikal = () => {
 
   // Auto paparkan tanda penemuan dan kecemasan bagi kes semasa
   kemaskiniMarkerPenemuanDanKecemasan()
+  kemaskiniMarkerSRUAtasPeta()
 }
 
 // FUNGSI AUTO-PLOT PENEMUAN & KECEMASAN DARI MESEJ APLIKASI MOBILE
@@ -1950,12 +2064,24 @@ const kemaskiniSenaraiAsetKes = async () => {
       idSasaranKes = [Number(selectedCaseId.value)]
     }
 
+    // 2. Masukkan semua aset yang tersenarai dalam pelan SAP kes sasaran
+    senaraiMasterSRU.value.forEach(p => {
+      if (p.nama && p.nama.trim() && p.nama.trim().toUpperCase() !== 'BOT SAYA') {
+        const pCaseId = Number(p.caseId)
+        if (idSasaranKes.includes(pCaseId) || (selectedCaseId.value === 'ALL' && idKesAktifList.includes(pCaseId))) {
+          asetUnik.add(p.nama.trim().toUpperCase())
+        }
+      }
+    })
+
     if (idSasaranKes.length > 0) {
-      // Dapatkan senarai bot_id unik dari rekod track history HANYA untuk kes aktif sasaran
+      // Dapatkan senarai bot_id unik dari rekod track history terkini (ORDER DESC)
       const { data, error } = await supabase
         .from('sru_track_history')
         .select('boat_id, case_id')
         .in('case_id', idSasaranKes)
+        .order('id', { ascending: false })
+        .limit(3000)
 
       if (!error && data) {
         data.forEach(r => {
@@ -2427,6 +2553,91 @@ const tarikMesejChatSupabase = async () => {
   }
 }
 
+const mainkanBunyiNotifikasi = (jenis) => {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    if (ctx.state === 'suspended') {
+      ctx.resume()
+    }
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+
+    if (jenis === 'kecemasan') {
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(880, ctx.currentTime)
+      osc.frequency.setValueAtTime(587, ctx.currentTime + 0.15)
+      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.3)
+      gain.gain.setValueAtTime(0.3, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.6)
+    } else if (jenis === 'penemuan') {
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(523.25, ctx.currentTime)
+      osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1)
+      osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.2)
+      gain.gain.setValueAtTime(0.25, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.5)
+    } else {
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(600, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(900, ctx.currentTime + 0.15)
+      gain.gain.setValueAtTime(0.2, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.25)
+    }
+  } catch (e) {}
+}
+
+const tunjukNotifikasi = (item) => {
+  const notifId = Date.now() + Math.floor(Math.random() * 1000)
+  const notifObj = {
+    id: notifId,
+    type: item.type,
+    title: item.title,
+    sender: item.sender || 'SRU',
+    message: item.message,
+    lat: item.lat,
+    lon: item.lon,
+    created_at: item.created_at || new Date().toISOString()
+  }
+
+  senaraiNotifikasi.value.unshift(notifObj)
+  if (senaraiNotifikasi.value.length > 5) {
+    senaraiNotifikasi.value.pop()
+  }
+
+  mainkanBunyiNotifikasi(item.type)
+
+  setTimeout(() => {
+    buangNotifikasi(notifId)
+  }, 8000)
+}
+
+const buangNotifikasi = (id) => {
+  senaraiNotifikasi.value = senaraiNotifikasi.value.filter(n => n.id !== id)
+}
+
+const fokusNotifikasiPeta = (notif) => {
+  if (mapInstance && notif.lat && notif.lon) {
+    mapInstance.flyTo([notif.lat, notif.lon], 13)
+  }
+  buangNotifikasi(notif.id)
+}
+
+const bukaTabCommDariNotifikasi = (notif) => {
+  activeRightSidebarTab.value = 'communication'
+  unreadCommCount.value = 0
+  tarikMesejChatSupabase()
+  autoScrollChatKeBawah()
+  buangNotifikasi(notif.id)
+}
+
 const hantarMesejChatSupabase = async () => {
   if (!inputMesejBaru.value.trim()) return
   if (!selectedCaseId.value || selectedCaseId.value === 'ALL') {
@@ -2469,11 +2680,65 @@ const langganMesejRealtimeSupabase = () => {
     .channel('sar_messages_live')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sar_messages' }, payload => {
       if (payload.new) {
-        const wujud = senaraiMesejChat.value.some(m => m.id === payload.new.id)
+        const msg = payload.new
+        const wujud = senaraiMesejChat.value.some(m => m.id === msg.id)
         if (!wujud) {
-          senaraiMesejChat.value.push(payload.new)
+          senaraiMesejChat.value.push(msg)
           kemaskiniMarkerPenemuanDanKecemasan()
           autoScrollChatKeBawah()
+
+          // Jangan notifikasi jika mesej dihantar oleh diri sendiri
+          if (msg.sender && activeStation.value && msg.sender.trim().toUpperCase() === activeStation.value.trim().toUpperCase()) {
+            return
+          }
+
+          // Parse koordinat jika ada
+          const matchCoord = msg.message ? msg.message.match(/(\d{1,2})[\s\-]+([\d\.]+)\s*([NS])\s+(\d{1,3})[\s\-]+([\d\.]+)\s*([EW])/i) : null
+          let lat = null, lon = null
+          if (matchCoord) {
+            lat = parseInt(matchCoord[1]) + parseFloat(matchCoord[2]) / 60
+            if (matchCoord[3].toUpperCase() === 'S') lat = -lat
+            lon = parseInt(matchCoord[4]) + parseFloat(matchCoord[5]) / 60
+            if (matchCoord[6].toUpperCase() === 'W') lon = -lon
+          }
+
+          const isKecemasan = msg.message && (msg.message.includes('KECEMASAN') || msg.message.includes('MAYDAY') || msg.message.includes('MOB'))
+          const isPenemuan = msg.message && (msg.message.includes('PENEMUAN') || msg.message.includes('SIGHTING'))
+
+          if (isKecemasan) {
+            tunjukNotifikasi({
+              type: 'kecemasan',
+              title: '🚨 AMARAN KECEMASAN / MOB',
+              sender: msg.sender,
+              message: msg.message,
+              lat,
+              lon,
+              created_at: msg.created_at
+            })
+          } else if (isPenemuan) {
+            tunjukNotifikasi({
+              type: 'penemuan',
+              title: '📍 LAPORAN PENEMUAN / SIGHTING',
+              sender: msg.sender,
+              message: msg.message,
+              lat,
+              lon,
+              created_at: msg.created_at
+            })
+          } else {
+            tunjukNotifikasi({
+              type: 'mesej',
+              title: '💬 Mesej Baharu COMM',
+              sender: msg.sender,
+              message: msg.message,
+              lat: null,
+              lon: null,
+              created_at: msg.created_at
+            })
+            if (activeRightSidebarTab.value !== 'communication') {
+              unreadCommCount.value++
+            }
+          }
         }
       }
     })
