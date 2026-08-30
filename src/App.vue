@@ -1622,6 +1622,25 @@ const bacaFailSAROPS = async (event) => {
         })
       }
 
+      // Pastikan nama SRU diekstrak dengan tepat (mengelakkan 'BOT SAYA' bagi fail SAROPS Web)
+      if (!namaSru || namaSru === 'BOT SAYA') {
+        let patternStr = corakPenuh || patternField || ''
+        if (patternStr) {
+          let extracted = patternStr.replace(/-?(VISUAL|IR|RADAR|NVG|OPTICAL|FLIR)$/i, '').replace(/\s*SEARCH$/i, '').trim()
+          if (extracted && extracted.toUpperCase() !== 'PARALLEL' && extracted.toUpperCase() !== 'CREEPING' && extracted.toUpperCase() !== 'EXPANDING SQUARE' && extracted.toUpperCase() !== 'SECTOR') {
+            namaSru = extracted
+          }
+        }
+      }
+
+      if (!namaSru || namaSru === 'BOT SAYA') {
+        let baseName = namaFail.replace(/\.[^/.]+$/, '').trim()
+        let cleanBase = baseName.replace(/-?(VISUAL|IR|RADAR|NVG|OPTICAL|FLIR)$/i, '').replace(/\s*SEARCH$/i, '').trim()
+        if (cleanBase && cleanBase.toUpperCase() !== 'PARALLEL' && cleanBase.toUpperCase() !== 'PLAN' && cleanBase.toUpperCase() !== 'SAROPS') {
+          namaSru = cleanBase
+        }
+      }
+
       await supabase.from('sar_plans').insert([{
         case_id: currentActiveCaseId,
         sru_name: namaSru,
