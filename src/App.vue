@@ -266,16 +266,24 @@
 
           <!-- ⏱️ FLOATING REPLAY TIMELINE CONTROLLER (GLASSMORPHISM BAR) -->
           <div 
+            id="replay-floating-window"
             v-if="isTimelineOpen" 
-            style="position: absolute; bottom: 44px; right: 12px; z-index: 1005; width: 460px; background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(12px); border: 1.5px solid #38bdf8; border-radius: 8px; padding: 10px 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.7); display: flex; flex-direction: column; gap: 8px; animation: popupAnim 0.15s ease-out;"
+            :style="replayWindowPos.x !== null ? { left: `${replayWindowPos.x}px`, top: `${replayWindowPos.y}px`, bottom: 'auto', right: 'auto' } : { bottom: '44px', right: '12px' }"
+            style="position: absolute; z-index: 1005; width: 460px; max-width: 90vw; background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(12px); border: 1.5px solid #38bdf8; border-radius: 8px; padding: 10px 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.7); display: flex; flex-direction: column; gap: 8px; animation: popupAnim 0.15s ease-out; user-select: none;"
           >
-            <!-- Header Bar Replay -->
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 4px;">
-              <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; color: #38bdf8;">
+            <!-- Header Bar Replay (Draggable Handle) -->
+            <div 
+              @mousedown="startDragReplay" 
+              @touchstart="startDragReplay" 
+              style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 4px; cursor: move; touch-action: none;"
+              title="Klik & seret untuk alihkan tetingkap ini ke mana-mana sudut peta"
+            >
+              <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; color: #38bdf8; pointer-events: none;">
+                <span style="color: #64748b; font-size: 13px;">⋮⋮</span>
                 <span>⏱️ REPLAY PERGERAKAN ASET</span>
                 <span style="background: #1e293b; color: #94a3b8; font-size: 9px; padding: 1px 6px; border-radius: 10px; border: 1px solid #475569;">{{ timelinePoints.length }} Titik</span>
               </div>
-              <button @click="tutupTimelinePlayback" style="background: none; border: none; color: #f87171; cursor: pointer; font-size: 13px; font-weight: bold;">✕</button>
+              <button @click.stop="tutupTimelinePlayback" style="background: none; border: none; color: #f87171; cursor: pointer; font-size: 15px; font-weight: bold; padding: 0 4px; line-height: 1;" title="Tutup Window Replay">✕</button>
             </div>
 
             <!-- Current Time & Position Display -->
@@ -752,6 +760,7 @@ const playbackSpeed = ref(1)
 const timelinePoints = ref([])
 const currentTimelineIndex = ref(0)
 const currentTimelineTime = ref('')
+const replayWindowPos = ref({ x: null, y: null })
 
 // DRIFT & SIMULATION STATE
 const driftSimData = ref(null)
@@ -1904,6 +1913,14 @@ const togglePlayReplay = () => {
   }
 }
 
+const stepReplay = (delta) => {
+  const newIdx = currentTimelineIndex.value + delta
+  if (newIdx >= 0 && newIdx < timelinePoints.value.length) {
+    currentTimelineIndex.value = newIdx
+    kemaskiniFrameReplay()
+  }
+}
+
 const resetReplay = () => {
   if (replayTimer) clearInterval(replayTimer)
   isPlaying.value = false
@@ -1911,12 +1928,36 @@ const resetReplay = () => {
   kemaskiniFrameReplay()
 }
 
+const tutupTimelinePlayback = () => {
+  if (replayTimer) clearInterval(replayTimer)
+  isPlaying.value = false
+  isTimelineOpen.value = false
+  if (replayLayer) replayLayer.clearLayers()
+  replayMarkers = {}
+}
+
+const formatMasaTitikReplay = (isoStr) => {
+  if (!isoStr) return ''
+  const d = new Date(isoStr)
+  if (isNaN(d.getTime())) return String(isoStr)
+  const pad = (n) => String(n).padStart(2, '0')
+  const day = pad(d.getDate())
+  const month = pad(d.getMonth() + 1)
+  const year = d.getFullYear()
+  const hours = pad(d.getHours())
+  const mins = pad(d.getMinutes())
+  const secs = pad(d.getSeconds())
+  return `${day}/${month}/${year} ${hours}:${mins}:${secs}`
+}
+
 const kemaskiniFrameReplay = () => {
   if (!replayLayer || timelinePoints.value.length === 0) return
   const cur = timelinePoints.value[currentTimelineIndex.value]
   if (!cur) return
 
-  currentTimelineTime.value = `${cur.boat_id} @ ${toDDM(cur.lat, false)} | ${toDDM(cur.lng, true)}`
+  // Format tarikh dan masa slider
+  const masaStr = formatMasaTitikReplay(cur.time)
+  currentTimelineTime.value = masaStr ? `📅 ${masaStr} (${cur.boat_id})` : `${cur.boat_id}`
 
   if (!replayMarkers[cur.boat_id]) {
     replayMarkers[cur.boat_id] = L.circleMarker([cur.lat, cur.lng], {
@@ -1930,6 +1971,69 @@ const kemaskiniFrameReplay = () => {
   } else {
     replayMarkers[cur.boat_id].setLatLng([cur.lat, cur.lng])
   }
+}
+
+// LOGIK DRAGGABLE FLOATING REPLAY WINDOW
+let isDraggingReplay = false
+let dragStartX = 0
+let dragStartY = 0
+let initialWindowX = 0
+let initialWindowY = 0
+
+const startDragReplay = (e) => {
+  const clientX = e.clientX ?? e.touches?.[0]?.clientX
+  const clientY = e.clientY ?? e.touches?.[0]?.clientY
+  if (clientX === undefined || clientY === undefined) return
+
+  isDraggingReplay = true
+  dragStartX = clientX
+  dragStartY = clientY
+
+  const replayEl = document.getElementById('replay-floating-window')
+  if (replayEl) {
+    const rect = replayEl.getBoundingClientRect()
+    const parentRect = replayEl.parentElement ? replayEl.parentElement.getBoundingClientRect() : { left: 0, top: 0 }
+    initialWindowX = rect.left - parentRect.left
+    initialWindowY = rect.top - parentRect.top
+    replayWindowPos.value = { x: initialWindowX, y: initialWindowY }
+  }
+
+  window.addEventListener('mousemove', onDragReplay)
+  window.addEventListener('mouseup', stopDragReplay)
+  window.addEventListener('touchmove', onDragReplay, { passive: false })
+  window.addEventListener('touchend', stopDragReplay)
+}
+
+const onDragReplay = (e) => {
+  if (!isDraggingReplay) return
+  const clientX = e.clientX ?? e.touches?.[0]?.clientX
+  const clientY = e.clientY ?? e.touches?.[0]?.clientY
+  if (clientX === undefined || clientY === undefined) return
+
+  const dx = clientX - dragStartX
+  const dy = clientY - dragStartY
+
+  let newX = initialWindowX + dx
+  let newY = initialWindowY + dy
+
+  const replayEl = document.getElementById('replay-floating-window')
+  if (replayEl && replayEl.parentElement) {
+    const parentRect = replayEl.parentElement.getBoundingClientRect()
+    const elWidth = replayEl.offsetWidth || 460
+    const elHeight = replayEl.offsetHeight || 140
+    newX = Math.max(0, Math.min(newX, parentRect.width - elWidth))
+    newY = Math.max(0, Math.min(newY, parentRect.height - elHeight))
+  }
+
+  replayWindowPos.value = { x: newX, y: newY }
+}
+
+const stopDragReplay = () => {
+  isDraggingReplay = false
+  window.removeEventListener('mousemove', onDragReplay)
+  window.removeEventListener('mouseup', stopDragReplay)
+  window.removeEventListener('touchmove', onDragReplay)
+  window.removeEventListener('touchend', stopDragReplay)
 }
 
 // ============================================================================
