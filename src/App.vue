@@ -29,13 +29,20 @@
             <select v-model="loginForm.stationId" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-weight: 600; background-color: #f8fafc; color: #0f172a;">
               <option value="" disabled>-- Pilih Stesen Operator --</option>
               <option value="MRCC Putrajaya" style="font-weight: bold; color: #2563eb;">⭐ MRCC Putrajaya (HQ Kebangsaan)</option>
-              <option disabled>──────────────</option>
+              <option disabled>── PUSAT OPERASI MRSC ──</option>
               <option value="MRSC Langkawi">MRSC Langkawi (Wilayah Utara)</option>
               <option value="MRSC Klang">MRSC Klang (Wilayah Barat)</option>
               <option value="MRSC Johor Baharu">MRSC Johor Baharu (Wilayah Selatan)</option>
               <option value="MRSC Kuantan">MRSC Kuantan (Wilayah Timur)</option>
               <option value="MRSC Kota Kinabalu">MRSC Kota Kinabalu (Wilayah Sabah)</option>
               <option value="MRSC Kuching">MRSC Kuching (Wilayah Sarawak)</option>
+              <option disabled>── PANGKALAN HADAPAN CARILAMAT (PHC) ──</option>
+              <option value="PHC - Perlis/Kedah/Pulau Pinang/Perak">📍 PHC - Perlis/Kedah/Pulau Pinang/Perak (MRSC Langkawi)</option>
+              <option value="PHC - Selangor/Negeri Sembilan">📍 PHC - Selangor/Negeri Sembilan (MRSC Klang)</option>
+              <option value="PHC - Melaka/Johor">📍 PHC - Melaka/Johor (MRSC Johor Baharu)</option>
+              <option value="PHC - Pahang/Terengganu/Kelantan">📍 PHC - Pahang/Terengganu/Kelantan (MRSC Kuantan)</option>
+              <option value="PHC - Sabah/Labuan">📍 PHC - Sabah/Labuan (MRSC Kota Kinabalu)</option>
+              <option value="PHC - Sarawak">📍 PHC - Sarawak (MRSC Kuching)</option>
               <option disabled>──────────────</option>
               <option value="Admin System" style="color: #ef4444; font-weight: bold;">🛠️ Admin System (Maintenance)</option>
             </select>
@@ -68,23 +75,38 @@
       </div>
 
       <!-- Main App Header -->
-      <header style="background-color: #0f172a; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1d4ed8; flex-shrink: 0; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 50;">
+      <header style="background-color: #0f172a; color: white; padding: 8px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1d4ed8; flex-shrink: 0; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 50;">
         <div style="display: flex; align-items: center; gap: 15px;">
           <img :src="logoBclbb" alt="Logo" style="height: 45px; width: auto;" />
           <div>
             <h1 style="margin: 0; font-size: 18px; letter-spacing: 1px; color: #f8fafc;">SAR MISSION COORDINATOR DASHBOARD</h1>
-            <span style="font-size: 11px; color: #38bdf8; font-weight: bold; letter-spacing: 0.5px;">STESEN: {{ activeStation }} // OPERATIONS OVERSEER SYSTEM</span>
+            <span style="font-size: 11px; color: #38bdf8; font-weight: bold; letter-spacing: 0.5px;">STESEN: {{ activeStation }}</span>
           </div>
         </div>
-        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; background: rgba(15, 23, 42, 0.5); padding: 8px 16px; border-radius: 6px; border: 1px solid #1e293b;">
-          <span style="color: #00ffcc; font-size: 10px; font-weight: 800; text-transform: uppercase;">Presence:</span>
-          <div v-for="stesen in stesenList" :key="stesen" style="display: flex; align-items: center; gap: 6px;">
-            <span :style="{
-              width: '8px', height: '8px', borderRadius: '50%',
-              backgroundColor: (onlineUsers.includes(stesen) || activeStation === stesen) ? '#22c55e' : '#475569',
-              boxShadow: (onlineUsers.includes(stesen) || activeStation === stesen) ? '0 0 6px #22c55e' : 'none'
-            }"></span>
-            <span :style="{ color: (onlineUsers.includes(stesen) || activeStation === stesen) ? '#f8fafc' : '#94a3b8', fontSize: '10px', fontWeight: 'bold' }">{{ stesen }}</span>
+        <div style="display: flex; flex-direction: column; gap: 3px; background: rgba(15, 23, 42, 0.6); padding: 5px 12px; border-radius: 6px; border: 1px solid #1e293b;">
+          <!-- Presence Bar: MRCC & MRSC -->
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+            <span style="color: #00ffcc; font-size: 9px; font-weight: 800; text-transform: uppercase;">Presence MRSC:</span>
+            <div v-for="stesen in stesenList" :key="stesen" style="display: flex; align-items: center; gap: 4px;">
+              <span :style="{
+                width: '7px', height: '7px', borderRadius: '50%',
+                backgroundColor: (onlineUsers.includes(stesen) || activeStation === stesen) ? '#22c55e' : '#475569',
+                boxShadow: (onlineUsers.includes(stesen) || activeStation === stesen) ? '0 0 6px #22c55e' : 'none'
+              }"></span>
+              <span :style="{ color: (onlineUsers.includes(stesen) || activeStation === stesen) ? '#f8fafc' : '#94a3b8', fontSize: '9px', fontWeight: 'bold' }">{{ stesen }}</span>
+            </div>
+          </div>
+          <!-- Presence Bar: PHC -->
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border-top: 1px solid rgba(51, 65, 85, 0.5); padding-top: 2px;">
+            <span style="color: #fbbf24; font-size: 9px; font-weight: 800; text-transform: uppercase;">Presence PHC:</span>
+            <div v-for="phc in phcList" :key="phc.id" style="display: flex; align-items: center; gap: 4px;" :title="phc.id">
+              <span :style="{
+                width: '7px', height: '7px', borderRadius: '50%',
+                backgroundColor: (onlineUsers.includes(phc.id) || activeStation === phc.id) ? '#22c55e' : '#475569',
+                boxShadow: (onlineUsers.includes(phc.id) || activeStation === phc.id) ? '0 0 6px #22c55e' : 'none'
+              }"></span>
+              <span :style="{ color: (onlineUsers.includes(phc.id) || activeStation === phc.id) ? '#f8fafc' : '#94a3b8', fontSize: '9px', fontWeight: 'bold' }">{{ phc.label }}</span>
+            </div>
           </div>
         </div>
       </header>
@@ -156,7 +178,7 @@
 
               <!-- TAB 1: SAP -->
               <template v-if="activeLeftPanelTab === 'sap'">
-                <div v-if="activeStation !== 'MRCC Putrajaya'" style="background: #1e293b; border-radius: 6px; border: 1px solid #334155; border-top: 3px solid #0284c7; padding: 12px; flex-shrink: 0;">
+                <div v-if="canUploadOrDelete" style="background: #1e293b; border-radius: 6px; border: 1px solid #334155; border-top: 3px solid #0284c7; padding: 12px; flex-shrink: 0;">
                   <h4 style="margin: 0 0 8px 0; font-size: 12px; color: #38bdf8; text-transform: uppercase;">📤 UPLOAD SAROPS</h4>
                   <label style="border: 2px dashed #475569; border-radius: 6px; padding: 14px 10px; text-align: center; color: #94a3b8; font-size: 11px; background-color: #0f172a; display: block; cursor: pointer; transition: 0.2s;">
                     📄 Klik Muat Naik (.txt, .gpx, .kml)
@@ -172,7 +194,7 @@
                         <strong style="font-size:11px; color:#fff;">{{ sru.nama }}</strong>
                         <div style="font-size:9px; color:#93c5fd;">{{ sru.kawasanNama }} • {{ sru.corak }}</div>
                       </div>
-                      <button v-if="activeStation !== 'MRCC Putrajaya'" @click="bukaPopUpPadam(sru)" style="background: #4c1d15; color: #f87171; border: 1px solid #991b1b; padding: 2px 6px; font-size: 9px; border-radius: 3px; cursor: pointer;">🗑️</button>
+                      <button v-if="canUploadOrDelete" @click="bukaPopUpPadam(sru)" style="background: #4c1d15; color: #f87171; border: 1px solid #991b1b; padding: 2px 6px; font-size: 9px; border-radius: 3px; cursor: pointer;">🗑️</button>
                     </div>
                     <div v-if="paparanSRUKesAktif.length === 0" style="text-align: center; color: #64748b; font-size: 11px; margin-top: 10px;">Tiada SRU diplot.</div>
                   </div>
@@ -181,7 +203,7 @@
 
               <!-- TAB 2: SIMULATION (.nc) -->
               <template v-else>
-                <div v-if="activeStation !== 'MRCC Putrajaya'" style="background: #1e293b; border-radius: 6px; border: 1px solid #334155; border-top: 3px solid #f59e0b; padding: 12px; flex-shrink: 0;">
+                <div v-if="canUploadOrDelete" style="background: #1e293b; border-radius: 6px; border: 1px solid #334155; border-top: 3px solid #f59e0b; padding: 12px; flex-shrink: 0;">
                   <h4 style="margin: 0 0 8px 0; font-size: 12px; color: #fbbf24; text-transform: uppercase;">📤 UPLOAD SIMULATION</h4>
                   <label style="border: 2px dashed #f59e0b; border-radius: 6px; padding: 14px 10px; text-align: center; color: #94a3b8; font-size: 11px; background-color: #0f172a; display: block; cursor: pointer; transition: 0.2s;">
                     🌊 Klik Muat Naik Fail (.nc, .hdf5, .h5)
@@ -220,7 +242,7 @@
                         </div>
                       </div>
                       <button 
-                        v-if="activeStation !== 'MRCC Putrajaya'" 
+                        v-if="canUploadOrDelete" 
                         @click.stop="padamFailSimulasi(sim)" 
                         style="background: #4c1d15; color: #f87171; border: 1px solid #991b1b; padding: 2px 6px; font-size: 9px; border-radius: 3px; cursor: pointer;"
                         title="Padam Fail Simulasi"
@@ -781,20 +803,36 @@ const loginError = ref('')
 const activeStation = ref('')
 const activeRegion = ref('')
 const isAdmin = computed(() => activeStation.value === 'Admin System')
+const isPHC = computed(() => (activeStation.value || '').startsWith('PHC'))
+const canUploadOrDelete = computed(() => activeStation.value !== 'MRCC Putrajaya' && !isPHC.value)
 const loginForm = ref({ stationId: '', password: '' })
 const amaranAdmin = ref('')
 const paparAmaran = ref(false)
 const onlineUsers = ref([])
 const stesenList = ['MRCC Putrajaya', 'MRSC Langkawi', 'MRSC Klang', 'MRSC Johor Baharu', 'MRSC Kuantan', 'MRSC Kota Kinabalu', 'MRSC Kuching']
+const phcList = [
+  { id: 'PHC - Perlis/Kedah/Pulau Pinang/Perak', label: 'PHC Langkawi' },
+  { id: 'PHC - Selangor/Negeri Sembilan', label: 'PHC Klang' },
+  { id: 'PHC - Melaka/Johor', label: 'PHC Johor Baharu' },
+  { id: 'PHC - Pahang/Terengganu/Kelantan', label: 'PHC Kuantan' },
+  { id: 'PHC - Sabah/Labuan', label: 'PHC Kota Kinabalu' },
+  { id: 'PHC - Sarawak', label: 'PHC Kuching' }
+]
 
 const pemetaanStesenRegion = {
   'MRCC Putrajaya': 'NASIONAL',
   'MRSC Langkawi': 'UTARA',
+  'PHC - Perlis/Kedah/Pulau Pinang/Perak': 'UTARA',
   'MRSC Klang': 'BARAT',
+  'PHC - Selangor/Negeri Sembilan': 'BARAT',
   'MRSC Johor Baharu': 'SELATAN',
+  'PHC - Melaka/Johor': 'SELATAN',
   'MRSC Kuantan': 'TIMUR',
+  'PHC - Pahang/Terengganu/Kelantan': 'TIMUR',
   'MRSC Kota Kinabalu': 'SABAH',
+  'PHC - Sabah/Labuan': 'SABAH',
   'MRSC Kuching': 'SARAWAK',
+  'PHC - Sarawak': 'SARAWAK',
   'Admin System': 'GLOBAL'
 }
 
@@ -1774,15 +1812,14 @@ const kemaskiniMarkerPenemuanDanKecemasan = () => {
   })
 }
 
-const padamMarkerAlertManual = (msgId) => {
-  if (msgId != null) {
+const padamMarkerAlertManual = async (msgId) => {
     senaraiAlertDipadam.value.add(msgId)
     senaraiAlertDipadam.value.add(String(msgId))
     senaraiAlertDipadam.value.add(Number(msgId))
     try {
       localStorage.setItem('sar_deleted_mobile_alerts', JSON.stringify(Array.from(senaraiAlertDipadam.value)))
     } catch (e) {}
-  }
+
   kemaskiniMarkerPenemuanDanKecemasan()
   if (mapInstance) mapInstance.closePopup()
 }
@@ -2940,6 +2977,16 @@ const langganMesejRealtimeSupabase = () => {
         }
       }
     })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'sar_messages' }, payload => {
+      if (payload.old && payload.old.id) {
+        const deletedId = payload.old.id
+        senaraiMesejChat.value = senaraiMesejChat.value.filter(m => Number(m.id) !== Number(deletedId))
+        senaraiAlertDipadam.value.add(deletedId)
+        senaraiAlertDipadam.value.add(String(deletedId))
+        senaraiAlertDipadam.value.add(Number(deletedId))
+        kemaskiniMarkerPenemuanDanKecemasan()
+      }
+    })
     .subscribe()
 }
 
@@ -2974,10 +3021,21 @@ const initializeDashboard = async () => {
 
 const prosesLoginMMEA = async () => {
   if (!loginForm.value.stationId) { loginError.value = 'Sila pilih Stesen Operator!'; return }
-  if (loginForm.value.password !== 'mrsc@123') { loginError.value = 'Security Password tidak sah!'; return }
+  
+  let expectedPassword = 'mrsc@123'
+  if (loginForm.value.stationId === 'MRCC Putrajaya') {
+    expectedPassword = 'mrcc@123'
+  } else if (loginForm.value.stationId.startsWith('PHC')) {
+    expectedPassword = 'phc@123'
+  }
+
+  if (loginForm.value.password !== expectedPassword) {
+    loginError.value = 'Security Password tidak sah!'
+    return
+  }
 
   activeStation.value = loginForm.value.stationId
-  activeRegion.value = pemetaanStesenRegion[loginForm.value.stationId]
+  activeRegion.value = pemetaanStesenRegion[loginForm.value.stationId] || 'NASIONAL'
   localStorage.setItem('isLoggedIn', 'true')
   localStorage.setItem('activeStation', activeStation.value)
   localStorage.setItem('activeRegion', activeRegion.value)
