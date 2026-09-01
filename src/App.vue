@@ -92,9 +92,21 @@
       <!-- Main Operational Workspace -->
       <div style="display: grid; grid-template-columns: 1fr 340px; gap: 12px; padding: 12px; flex: 1; min-height: 0; box-sizing: border-box; width: 100%;">
         
-        <!-- PETA LEAFLET -->
-        <div style="position: relative; overflow: hidden; display: flex; flex-direction: column; min-height: 400px;">
-          <div id="map" :class="{ 'text-cursor': activeTool === 'text', 'pencil-cursor': activeTool && activeTool !== 'text', 'delete-cursor': isDeleteMode }" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1;"></div>
+        <!-- PETA LEAFLET & WINDY DEDICATED VIEW -->
+        <div style="position: relative; overflow: hidden; display: flex; flex-direction: column; min-height: 400px; width: 100%; height: 100%;">
+          <!-- PAPARAN PENUH WINDY INTERAKTIF TULEN -->
+          <iframe 
+            v-if="selectedBaseLayer === 'windy'" 
+            src="https://embed.windy.com/embed2.html?lat=4.2&lon=109.5&detailLat=4.2&detailLon=109.5&width=100%25&height=100%25&zoom=5&level=surface&overlay=wind&product=ecmwf&menu=true&message=true&marker=true&calendar=now&pressure=true&type=map&location=coordinates&detail=true&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1"
+            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; z-index: 10;"
+          ></iframe>
+
+          <!-- PAPARAN PETA OPERASI LEAFLET -->
+          <div 
+            id="map" 
+            :class="{ 'text-cursor': activeTool === 'text', 'pencil-cursor': activeTool && activeTool !== 'text', 'delete-cursor': isDeleteMode }" 
+            style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1;"
+          ></div>
           
           <!-- Panel Kiri Taktikal -->
           <div :style="{
@@ -234,15 +246,17 @@
 
           <!-- UNIFIED TACTICAL MAP TOOLBAR (TOP RIGHT) -->
           <div style="position: absolute; top: 10px; right: 10px; z-index: 1000; display: flex; align-items: center; gap: 4px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); border: 1px solid #475569; border-radius: 6px; padding: 3px 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
-            <button @click="aktifkanTool('circle')" :class="{ active: activeTool === 'circle' }" class="tool-btn-icon" title="Bulatan (2-Klik)">⭕</button>
-            <button @click="aktifkanTool('rect')" :class="{ active: activeTool === 'rect' }" class="tool-btn-icon" title="Segi Empat (2-Klik)">⬛</button>
-            <button @click="aktifkanTool('line')" :class="{ active: activeTool === 'line' }" class="tool-btn-icon" title="Ukur Jarak / Garisan (2-Klik)">📏</button>
-            <button @click="aktifkanTool('marker')" :class="{ active: activeTool === 'marker' }" class="tool-btn-icon" title="Pin Marker (1-Klik)">📍</button>
-            <button @click="aktifkanTool('text')" :class="{ active: activeTool === 'text' }" class="tool-btn-icon" title="Catatan Teks (1-Klik)">📝</button>
-            <button @click="toggleDeleteMode" :class="{ active: isDeleteMode }" class="tool-btn-icon-danger" title="Mod Padam Lukisan">🗑️</button>
-            <button @click="bersihkanLukisan" class="tool-btn-icon" title="Padam Semua Lukisan" style="color: #f87171;">🧹</button>
-
-            <div style="width: 1px; height: 18px; background: #475569; margin: 0 3px;"></div>
+            <!-- BUTANG ALATAN LUKISAN (HANYA UNTUK MOD OPERASI OSM & SATELIT) -->
+            <template v-if="selectedBaseLayer !== 'windy'">
+              <button @click="aktifkanTool('circle')" :class="{ active: activeTool === 'circle' }" class="tool-btn-icon" title="Bulatan (2-Klik)">⭕</button>
+              <button @click="aktifkanTool('rect')" :class="{ active: activeTool === 'rect' }" class="tool-btn-icon" title="Segi Empat (2-Klik)">⬛</button>
+              <button @click="aktifkanTool('line')" :class="{ active: activeTool === 'line' }" class="tool-btn-icon" title="Ukur Jarak / Garisan (2-Klik)">📏</button>
+              <button @click="aktifkanTool('marker')" :class="{ active: activeTool === 'marker' }" class="tool-btn-icon" title="Pin Marker (1-Klik)">📍</button>
+              <button @click="aktifkanTool('text')" :class="{ active: activeTool === 'text' }" class="tool-btn-icon" title="Catatan Teks (1-Klik)">📝</button>
+              <button @click="toggleDeleteMode" :class="{ active: isDeleteMode }" class="tool-btn-icon-danger" title="Mod Padam Lukisan">🗑️</button>
+              <button @click="bersihkanLukisan" class="tool-btn-icon" title="Padam Semua Lukisan" style="color: #f87171;">🧹</button>
+              <div style="width: 1px; height: 18px; background: #475569; margin: 0 3px;"></div>
+            </template>
 
             <!-- SEARCH / GO-TO -->
             <input type="text" v-model="teksCarianPeta" @keydown.enter="laksanakanCarianPeta" placeholder="🔍 Lokasi / Lat, Lon..." style="width: 170px; height: 26px; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 0 6px; border-radius: 4px; font-size: 11px;" />
@@ -256,8 +270,8 @@
                 <div style="font-size: 9px; font-weight: 800; color: #38bdf8;">TEMA ASAS</div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3px;">
                   <button @click="tukarBaseLayer('osm')" :style="{ background: selectedBaseLayer === 'osm' ? '#0284c7' : '#1e293b' }" style="color:#fff; border:1px solid #334155; font-size:9px; padding:4px; border-radius:3px; cursor:pointer;">OSM</button>
-                  <button @click="tukarBaseLayer('dark')" :style="{ background: selectedBaseLayer === 'dark' ? '#0284c7' : '#1e293b' }" style="color:#fff; border:1px solid #334155; font-size:9px; padding:4px; border-radius:3px; cursor:pointer;">Dark</button>
                   <button @click="tukarBaseLayer('satellite')" :style="{ background: selectedBaseLayer === 'satellite' ? '#0284c7' : '#1e293b' }" style="color:#fff; border:1px solid #334155; font-size:9px; padding:4px; border-radius:3px; cursor:pointer;">Satelit</button>
+                  <button @click="tukarBaseLayer('windy')" :style="{ background: selectedBaseLayer === 'windy' ? '#0284c7' : '#1e293b' }" style="color:#fff; border:1px solid #334155; font-size:9px; padding:4px; border-radius:3px; cursor:pointer;" title="Peta Interaktif Cuaca & Angin Windy">Windy</button>
                 </div>
                 <div style="font-size: 9px; font-weight: 800; color: #38bdf8; margin-top: 4px;">SEMPADAN MARITIM</div>
                 <label style="display:flex; align-items:center; gap:6px; font-size:10px; cursor:pointer;"><input type="checkbox" v-model="showLayerMSRR" @change="togolLayerMSRR" /> Sempadan MSRR</label>
@@ -266,7 +280,6 @@
               </div>
             </div>
           </div>
-
           <!-- ⏱️ FLOATING REPLAY TIMELINE CONTROLLER (GLASSMORPHISM BAR) -->
           <div 
             id="replay-floating-window"
@@ -389,6 +402,7 @@
 
           <!-- BOTTOM-RIGHT LIVE COORDINATES (PENJEJAK KURSOR TETIKUS) -->
           <div 
+            v-if="selectedBaseLayer !== 'windy'"
             style="position: absolute; bottom: 42px; right: 8px; z-index: 1000; background: rgba(15, 23, 42, 0.95); border: 1.5px solid #38bdf8; color: #38bdf8; font-family: monospace; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 4px; pointer-events: none; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.6); backdrop-filter: blur(8px);"
           >
             🌐 {{ currentLat }} | {{ currentLng }}
@@ -900,6 +914,7 @@ const showLayerMSRR = ref(false)
 const showLayerPelantar = ref(false)
 const showOpenSeaMap = ref(true)
 const selectedBaseLayer = ref('osm')
+const windyCoords = ref({ lat: '4.2000', lon: '109.5000', zoom: 5 })
 
 // TIMELINE & REPLAY STATE
 const isTimelineOpen = ref(false)
@@ -1266,8 +1281,8 @@ const initMap = async () => {
 
   baseLayers = {
     osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapInstance),
-    dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }),
-    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 })
+    dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png', { maxZoom: 19, subdomains: 'abcd' }),
+    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, maxNativeZoom: 18 })
   }
   layerSeaMapInstance = L.tileLayer('https://tiles.openseamap.org/seamap/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(mapInstance)
 
@@ -1541,10 +1556,19 @@ const bersihkanLukisan = () => {
   isDeleteMode.value = false
 }
 
+let weatherLayerInstance = null
+
 const tukarBaseLayer = (jenis) => {
   selectedBaseLayer.value = jenis
   Object.values(baseLayers).forEach(l => { if (mapInstance && mapInstance.hasLayer(l)) mapInstance.removeLayer(l) })
-  if (mapInstance && baseLayers[jenis]) baseLayers[jenis].addTo(mapInstance).bringToBack()
+  
+  if (jenis !== 'windy') {
+    if (mapInstance && baseLayers[jenis]) baseLayers[jenis].addTo(mapInstance).bringToBack()
+    setTimeout(() => {
+      if (mapInstance) mapInstance.invalidateSize()
+    }, 50)
+  }
+
   if (mapInstance && showOpenSeaMap.value && !mapInstance.hasLayer(layerSeaMapInstance)) {
     layerSeaMapInstance.addTo(mapInstance)
   }
@@ -1575,7 +1599,9 @@ const laksanakanCarianPeta = async () => {
       mapInstance.flyTo([parseFloat(data[0].lat), parseFloat(data[0].lon)], 11)
       L.marker([parseFloat(data[0].lat), parseFloat(data[0].lon)]).addTo(toolsLayer).bindPopup(`📍 ${data[0].display_name}`).openPopup()
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error("Ralat carian lokasi:", e)
+  }
 }
 
 // ============================================================================
