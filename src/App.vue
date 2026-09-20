@@ -1,12 +1,26 @@
 <template>
   <div style="font-family: 'Segoe UI', Roboto, sans-serif; background-color: #0b0f19; min-height: 100dvh; min-width: 1280px; width: 100%; display: flex; flex-direction: column; color: #f1f5f9; overflow: auto; box-sizing: border-box; margin: 0; padding: 0;">
 
-    <!-- 🚨 EMERGENCY BROADCAST POP-UP -->
-    <div v-if="paparAmaran" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.9); z-index: 9999; display: flex; justify-content: center; align-items: center;">
-      <div style="background-color: #ff0000; padding: 40px; border-radius: 10px; border: 5px solid white; text-align: center; max-width: 600px; box-shadow: 0 0 50px red;">
-        <h1 style="color: white; font-size: 32px; font-weight: bold; margin-bottom: 20px;">🚨 ALLERT 🚨</h1>
-        <p style="color: white; font-size: 24px; margin-bottom: 30px;">{{ amaranAdmin }}</p>
-        <button @click="paparAmaran = false" style="background-color: white; color: red; font-size: 20px; font-weight: bold; padding: 15px 30px; border: none; border-radius: 5px; cursor: pointer;">SAYA MAKLUM & SAHKAN</button>
+    <!-- 🚨 EMERGENCY / ANNOUNCEMENT BROADCAST POP-UP -->
+    <div v-if="paparAmaran" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.88); z-index: 9999; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(8px);">
+      <div 
+        :style="{
+          backgroundColor: jenisAmaranAdmin === 'pengumuman' ? '#ea580c' : '#dc2626',
+          boxShadow: jenisAmaranAdmin === 'pengumuman' ? '0 0 55px rgba(234, 88, 12, 0.85)' : '0 0 55px rgba(220, 38, 38, 0.85)'
+        }"
+        style="padding: 35px 40px; border-radius: 12px; border: 4px solid #ffffff; text-align: center; max-width: 620px; width: 90vw; animation: popupAnim 0.2s ease-out;"
+      >
+        <h1 style="color: #ffffff; font-size: 26px; font-weight: 900; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 1px;">
+          {{ jenisAmaranAdmin === 'pengumuman' ? '📢 PENGUMUMAN PENTADBIR SISTEM' : '🚨 AMARAN PENTADBIR SISTEM 🚨' }}
+        </h1>
+        <p style="color: #ffffff; font-size: 19px; font-weight: 600; line-height: 1.5; margin-bottom: 28px; word-break: break-word; white-space: pre-wrap;">{{ amaranAdmin }}</p>
+        <button 
+          @click="paparAmaran = false" 
+          :style="{ color: jenisAmaranAdmin === 'pengumuman' ? '#ea580c' : '#dc2626' }"
+          style="background-color: #ffffff; font-size: 17px; font-weight: 900; padding: 12px 30px; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: transform 0.1s;"
+        >
+          SAYA MAKLUM & SAHKAN
+        </button>
       </div>
     </div>
     
@@ -67,9 +81,16 @@
       <!-- Top Overseer Status Bar -->
       <div style="background-color: #020617; color: #64748b; padding: 6px 20px; font-size: 10px; font-weight: bold; display: flex; justify-content: space-between; border-bottom: 1px solid #1e293b; flex-shrink: 0; z-index: 50;">
         <div>MALAYSIA MARITIME ENFORCEMENT AGENCY (MMEA) • {{ activeStation.toUpperCase() }}</div>
-        <div style="display: flex; gap: 15px; align-items: center;">
-          <span v-if="activeStation === 'MRCC Putrajaya'"><strong style="color: #fbbf24;">🖥️ MODE OVERSEER: NASIONAL</strong></span>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span v-if="isAdmin"><strong style="color: #ef4444;">🛠️ MODE SYSTEM ADMIN (MAINTENANCE)</strong></span>
+          <span v-else-if="activeStation === 'MRCC Putrajaya'"><strong style="color: #fbbf24;">🖥️ MODE OVERSEER: NASIONAL</strong></span>
           <span v-else>REGION TAKTIKAL: <strong style="color: #38bdf8;">WILAYAH {{ activeRegion }}</strong></span>
+          
+          <template v-if="isAdmin">
+            <button @click="bukaModalBroadcast('amaran')" style="background: #dc2626; color: white; border: 1px solid #f87171; padding: 2px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; font-weight: 800; display: flex; align-items: center; gap: 4px; box-shadow: 0 0 10px rgba(239, 68, 68, 0.6); animation: webReplayPulse 2s infinite;" title="Kirim Siaran Amaran Merah Kecemasan">🚨 BROADCAST AMARAN</button>
+            <button @click="bukaModalBroadcast('pengumuman')" style="background: #ea580c; color: white; border: 1px solid #fb923c; padding: 2px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; font-weight: 800; display: flex; align-items: center; gap: 4px; box-shadow: 0 0 10px rgba(234, 88, 12, 0.6);" title="Kirim Siaran Pengumuman Jingga">📢 BROADCAST PENGUMUMAN</button>
+          </template>
+
           <button @click="prosesLogKeluar" style="background: #334155; color: #f87171; border: 1px solid #475569; padding: 1px 6px; border-radius: 3px; font-size: 9px; cursor: pointer; font-weight: bold;">LOGOUT 🔓</button>
         </div>
       </div>
@@ -949,6 +970,115 @@
         </div>
       </div>
 
+      <!-- MODAL BROADCAST ADMIN SYSTEM -->
+      <div v-if="showAdminBroadcastModal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(6px);">
+        <div 
+          :style="{
+            borderColor: modalBroadcastMode === 'pengumuman' ? '#ea580c' : '#ef4444',
+            boxShadow: modalBroadcastMode === 'pengumuman' ? '0 0 40px rgba(234,88,12,0.5)' : '0 0 40px rgba(239,68,68,0.5)'
+          }"
+          style="background: #0f172a; width: 620px; max-width: 94vw; border-radius: 8px; border: 2px solid; padding: 20px; color: #f8fafc; display: flex; flex-direction: column; animation: popupAnim 0.15s ease-out;"
+        >
+          <!-- Header Modal -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid #334155; padding-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 22px;">{{ modalBroadcastMode === 'pengumuman' ? '📢' : '🚨' }}</span>
+              <div>
+                <h3 
+                  :style="{ color: modalBroadcastMode === 'pengumuman' ? '#fb923c' : '#ef4444' }"
+                  style="margin: 0; font-size: 15px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px;"
+                >
+                  {{ modalBroadcastMode === 'pengumuman' ? 'Broadcast Pengumuman Pentadbir Sistem' : 'Emergency Broadcast Amaran Pentadbir' }}
+                </h3>
+                <span style="font-size: 10px; color: #94a3b8;">
+                  {{ modalBroadcastMode === 'pengumuman' ? 'Siaran pengumuman makluman (Jingga) ke SEMUA stesen serentak' : 'Siaran amaran kecemasan kritikal (Merah) ke SEMUA stesen serentak' }}
+                </span>
+              </div>
+            </div>
+            <button @click="showAdminBroadcastModal = false" style="background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer; line-height: 1; padding: 4px;" title="Tutup">✕</button>
+          </div>
+
+          <!-- Mode Switcher Tab Inside Modal -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; background: #020617; border-radius: 6px; padding: 3px; gap: 4px; border: 1px solid #334155; margin-bottom: 10px;">
+            <button 
+              @click="modalBroadcastMode = 'amaran'" 
+              :style="{ background: modalBroadcastMode === 'amaran' ? '#dc2626' : 'transparent', color: modalBroadcastMode === 'amaran' ? '#fff' : '#94a3b8' }" 
+              style="border:none; padding:6px; border-radius:4px; font-size:11px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px;"
+            >
+              🚨 Mode Amaran (Merah)
+            </button>
+            <button 
+              @click="modalBroadcastMode = 'pengumuman'" 
+              :style="{ background: modalBroadcastMode === 'pengumuman' ? '#ea580c' : 'transparent', color: modalBroadcastMode === 'pengumuman' ? '#fff' : '#94a3b8' }" 
+              style="border:none; padding:6px; border-radius:4px; font-size:11px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px;"
+            >
+              📢 Mode Pengumuman (Jingga)
+            </button>
+          </div>
+
+          <!-- Body Modal -->
+          <div style="display: flex; flex-direction: column; gap: 12px; font-size: 11px;">
+            <div 
+              :style="{ borderLeftColor: modalBroadcastMode === 'pengumuman' ? '#ea580c' : '#ef4444' }"
+              style="background: #1e293b; border-radius: 6px; border-left-width: 3px; border-left-style: solid; padding: 10px 12px; line-height: 1.5; color: #cbd5e1;"
+            >
+              <strong>ℹ️ Perhatian:</strong> Mesej yang dihantar akan terpapar serta-merta sebagai 
+              <strong>pop-up skrin penuh {{ modalBroadcastMode === 'pengumuman' ? 'berwarna JINGGA' : 'berwarna MERAH' }}</strong> 
+              pada semua pelayar MRCC, MRSC, dan PHC yang sedang aktif.
+            </div>
+
+            <!-- Templat Mesej Pantas -->
+            <div>
+              <label style="display: block; font-size: 10px; font-weight: bold; color: #94a3b8; margin-bottom: 4px;">PILIH TEMPLAT PANTAS:</label>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                <button v-if="modalBroadcastMode === 'pengumuman'" @click="teksBroadcastAdmin = '📢 MAKLUMAN PENTADBIR: Penyelenggaraan Pelayan Berjadual Akan Dijalankan Dalam Masa 15 Minit. Sila Simpan Maklumat Terkini.'" style="background: #1e293b; color: #fb923c; border: 1px solid #334155; padding: 4px 8px; border-radius: 4px; font-size: 10px; cursor: pointer;">🛠️ Penyelenggaraan Pelayan</button>
+                <button v-if="modalBroadcastMode === 'pengumuman'" @click="teksBroadcastAdmin = '📢 PENGUMUMAN PENTADBIR: Sila Kemaskini Status Aset & Telemetri Terkini Serta-Merta.'" style="background: #1e293b; color: #fbbf24; border: 1px solid #334155; padding: 4px 8px; border-radius: 4px; font-size: 10px; cursor: pointer;">📢 Kemaskini Status Aset</button>
+                <button v-if="modalBroadcastMode === 'pengumuman'" @click="teksBroadcastAdmin = '📢 MAKLUMAN PENTADBIR: Ujian Komunikasi Sistem SMC SAR Sedang Dijalankan. Tiada Tindakan Diperlukan.'" style="background: #1e293b; color: #34d399; border: 1px solid #334155; padding: 4px 8px; border-radius: 4px; font-size: 10px; cursor: pointer;">⚡ Ujian Komunikasi</button>
+                <button v-if="modalBroadcastMode === 'amaran'" @click="teksBroadcastAdmin = '🚨 AMARAN KECEMASAN: Latihan SAR Nasional Sedang Bermula. Semua SMC Sila Bersedia.'" style="background: #1e293b; color: #f87171; border: 1px solid #334155; padding: 4px 8px; border-radius: 4px; font-size: 10px; cursor: pointer;">🚨 Latihan SAR Nasional</button>
+                <button v-if="modalBroadcastMode === 'amaran'" @click="teksBroadcastAdmin = '🚨 AMARAN KRITIKAL: Gangguan Rangkaian Utama Terkesan. Sila Beralih Ke Frekuensi Kecemasan VHF CH 16.'" style="background: #1e293b; color: #f87171; border: 1px solid #334155; padding: 4px 8px; border-radius: 4px; font-size: 10px; cursor: pointer;">🚨 Gangguan Rangkaian</button>
+              </div>
+            </div>
+
+            <!-- Input Teks Mesej -->
+            <div>
+              <label style="display: block; font-size: 10px; font-weight: bold; color: #f8fafc; margin-bottom: 4px;">KANDUNGAN MESEJ SIARAN ({{ modalBroadcastMode === 'pengumuman' ? 'PENGUMUMAN JINGGA' : 'AMARAN MERAH' }}):</label>
+              <textarea 
+                v-model="teksBroadcastAdmin" 
+                rows="4" 
+                :placeholder="modalBroadcastMode === 'pengumuman' ? 'Taipkan mesej pengumuman rasmi di sini...' : 'Taipkan mesej amaran kecemasan di sini...'" 
+                style="width: 100%; padding: 10px; border: 1.5px solid #475569; border-radius: 6px; background: #020617; color: #ffffff; font-size: 13px; font-weight: bold; resize: vertical; box-sizing: border-box; font-family: sans-serif;"
+              ></textarea>
+            </div>
+          </div>
+
+          <!-- Footer Modal -->
+          <div style="margin-top: 16px; border-top: 1px solid #334155; padding-top: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <button 
+              @click="tutupSemuaAmaranStesen" 
+              style="padding: 7px 12px; background: #334155; color: #94a3b8; border: 1px solid #475569; border-radius: 4px; font-size: 10px; font-weight: bold; cursor: pointer;"
+              title="Kirim isyarat tutup pop-up amaran untuk semua stesen"
+            >
+              🧹 Tutup Pop-Up Semua Stesen
+            </button>
+            <div style="display: flex; gap: 8px;">
+              <button @click="showAdminBroadcastModal = false" style="padding: 7px 14px; background: #1e293b; color: #cbd5e1; border: 1px solid #334155; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px;">Batal</button>
+              <button 
+                @click="hantarBroadcastAdmin" 
+                :disabled="isMenghantarBroadcast || !teksBroadcastAdmin.trim()"
+                :style="{
+                  backgroundColor: modalBroadcastMode === 'pengumuman' ? '#ea580c' : '#dc2626',
+                  borderColor: modalBroadcastMode === 'pengumuman' ? '#fb923c' : '#ef4444',
+                  boxShadow: modalBroadcastMode === 'pengumuman' ? '0 0 15px rgba(234,88,12,0.6)' : '0 0 15px rgba(220,38,38,0.6)'
+                }"
+                style="padding: 7px 16px; color: white; border: 1px solid; border-radius: 4px; font-weight: 900; cursor: pointer; font-size: 11px; display: flex; align-items: center; gap: 6px;"
+              >
+                {{ isMenghantarBroadcast ? '⏳ Menghantar...' : (modalBroadcastMode === 'pengumuman' ? '📢 HANTAR PENGUMUMAN JINGGA' : '🚨 HANTAR AMARAN MERAH') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
   </div>
@@ -1102,6 +1232,15 @@ const showAddCaseModal = ref(false)
 const showDeleteModal = ref(false)
 const showSapInstructionModal = ref(false)
 const showSimInstructionModal = ref(false)
+const showAdminBroadcastModal = ref(false)
+const modalBroadcastMode = ref('amaran')
+const jenisAmaranAdmin = ref('amaran')
+const teksBroadcastAdmin = ref('')
+const isMenghantarBroadcast = ref(false)
+const bukaModalBroadcast = (mode = 'amaran') => {
+  modalBroadcastMode.value = mode
+  showAdminBroadcastModal.value = true
+}
 const copiedSapSample = ref(false)
 const sruTargetToPadam = ref(null)
 const formAddKes = ref({ case_no: '', case_name: '', search_object: '' })
@@ -1179,6 +1318,77 @@ const fallbackCopyText = (text) => {
     setTimeout(() => { copiedSapSample.value = false }, 2500)
   } catch (err) {}
   document.body.removeChild(textArea)
+}
+
+// ============================================================================
+// SYSTEM ADMIN EMERGENCY BROADCAST CONTROLS
+// ============================================================================
+let adminBroadcastChannel = null
+
+const hantarBroadcastAdmin = async () => {
+  if (!teksBroadcastAdmin.value.trim()) {
+    alert("⚠️ Sila masukkan teks pengumuman/amaran!")
+    return
+  }
+  const teks = teksBroadcastAdmin.value.trim()
+  const isPengumuman = modalBroadcastMode.value === 'pengumuman'
+  isMenghantarBroadcast.value = true
+
+  try {
+    // 1. Kirim via Supabase Broadcast (Realtime segera ke semua tab/skrin yang aktif)
+    if (adminBroadcastChannel) {
+      await adminBroadcastChannel.send({
+        type: 'broadcast',
+        event: 'admin_alert',
+        payload: { 
+          message: teks, 
+          type: isPengumuman ? 'pengumuman' : 'amaran',
+          sender: isPengumuman ? 'PENGUMUMAN ADMIN' : 'AMARAN ADMIN', 
+          timestamp: new Date().toISOString() 
+        }
+      })
+    }
+
+    // 2. Simpan rekod ke sar_messages supaya stesen lain menerima rekod postgres_changes
+    await supabase.from('sar_messages').insert([{
+      case_id: null,
+      sender: isPengumuman ? 'PENGUMUMAN ADMIN' : 'AMARAN ADMIN',
+      message: teks,
+      chat_type: 'broadcast'
+    }])
+
+    // Paparkan juga pada skrin Admin
+    jenisAmaranAdmin.value = isPengumuman ? 'pengumuman' : 'amaran'
+    amaranAdmin.value = teks
+    paparAmaran.value = true
+
+    alert(isPengumuman ? "✅ Siaran pengumuman berjaya dihantar ke SEMUA stesen!" : "✅ Amaran broadcast berjaya dihantar ke SEMUA stesen!")
+    showAdminBroadcastModal.value = false
+    teksBroadcastAdmin.value = ''
+  } catch (err) {
+    console.error("Ralat menghantar broadcast:", err)
+    alert("⚠️ Gagal menghantar broadcast: " + (err.message || err))
+  } finally {
+    isMenghantarBroadcast.value = false
+  }
+}
+
+const tutupSemuaAmaranStesen = async () => {
+  if (!confirm("Adakah anda pasti mahu memadam/menutup pop-up amaran pada skrin SEMUA stesen?")) return
+  try {
+    if (adminBroadcastChannel) {
+      await adminBroadcastChannel.send({
+        type: 'broadcast',
+        event: 'clear_admin_alert',
+        payload: {}
+      })
+    }
+    paparAmaran.value = false
+    amaranAdmin.value = ''
+    alert("✅ Isyarat tutup amaran telah dihantar ke semua stesen.")
+  } catch (e) {
+    console.error("Ralat menutup amaran:", e)
+  }
 }
 
 // PENAPIS MASA SEJARAH (TRACK HISTORY FILTERS)
@@ -3400,6 +3610,17 @@ const langganMesejRealtimeSupabase = () => {
           kemaskiniMarkerPenemuanDanKecemasan()
           autoScrollChatKeBawah()
 
+          // Semak jika ini adalah broadcast amaran / pengumuman daripada Admin
+          if (msg.chat_type === 'broadcast' || (msg.sender && (msg.sender.includes('PENGUMUMAN ADMIN') || msg.sender.includes('AMARAN ADMIN') || msg.sender.includes('Admin System')))) {
+            if (msg.sender && msg.sender.includes('PENGUMUMAN')) {
+              jenisAmaranAdmin.value = 'pengumuman'
+            } else {
+              jenisAmaranAdmin.value = 'amaran'
+            }
+            amaranAdmin.value = msg.message
+            paparAmaran.value = true
+          }
+
           // Jangan notifikasi jika mesej dihantar oleh diri sendiri
           if (msg.sender && activeStation.value && msg.sender.trim().toUpperCase() === activeStation.value.trim().toUpperCase()) {
             return
@@ -3471,6 +3692,27 @@ const langganMesejRealtimeSupabase = () => {
     .subscribe()
 }
 
+const langganBroadcastAdminChannel = () => {
+  if (adminBroadcastChannel) return
+  adminBroadcastChannel = supabase.channel('admin_broadcast_channel')
+    .on('broadcast', { event: 'admin_alert' }, (data) => {
+      if (data && data.payload && data.payload.message) {
+        if (data.payload.type === 'pengumuman' || (data.payload.sender && data.payload.sender.includes('PENGUMUMAN'))) {
+          jenisAmaranAdmin.value = 'pengumuman'
+        } else {
+          jenisAmaranAdmin.value = 'amaran'
+        }
+        amaranAdmin.value = data.payload.message
+        paparAmaran.value = true
+      }
+    })
+    .on('broadcast', { event: 'clear_admin_alert' }, () => {
+      paparAmaran.value = false
+      amaranAdmin.value = ''
+    })
+    .subscribe()
+}
+
 // ============================================================================
 // 10. LIFECYCLE & INITIALIZATION
 // ============================================================================
@@ -3485,6 +3727,7 @@ const initializeDashboard = async () => {
   mulakanPresence()
   await recallPlanDariSupabase()
   langganPelanSarRealtime()
+  langganBroadcastAdminChannel()
   
   // Muat semula fail simulasi (.nc) yang pernah dimuat naik dari IndexedDB
   const storedSims = await muatSemuaSimulasiDariIndexedDB()
@@ -3508,9 +3751,11 @@ const prosesLoginMMEA = async () => {
     expectedPassword = 'mrcc@123'
   } else if (loginForm.value.stationId.startsWith('PHC')) {
     expectedPassword = 'phc@123'
+  } else if (loginForm.value.stationId === 'Admin System') {
+    expectedPassword = 'admin@123'
   }
 
-  if (loginForm.value.password !== expectedPassword) {
+  if (loginForm.value.password !== expectedPassword && !(loginForm.value.stationId === 'Admin System' && loginForm.value.password === 'mrsc@123')) {
     loginError.value = 'Security Password tidak sah!'
     return
   }
