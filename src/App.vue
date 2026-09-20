@@ -179,9 +179,18 @@
               <!-- TAB 1: SAP -->
               <template v-if="activeLeftPanelTab === 'sap'">
                 <div v-if="canUploadOrDelete" style="background: #1e293b; border-radius: 6px; border: 1px solid #334155; border-top: 3px solid #0284c7; padding: 12px; flex-shrink: 0;">
-                  <h4 style="margin: 0 0 8px 0; font-size: 12px; color: #38bdf8; text-transform: uppercase;">📤 UPLOAD SAROPS</h4>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <h4 style="margin: 0; font-size: 12px; color: #38bdf8; text-transform: uppercase;">📤 UPLOAD SAROPS SAP</h4>
+                    <button 
+                      @click="showSapInstructionModal = true" 
+                      style="background: #0284c7; color: #ffffff; border: 1px solid #38bdf8; padding: 3px 8px; font-size: 10px; font-weight: 800; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: 0.2s;"
+                      title="Lihat Format & Contoh Fail SAROPS SAP .TXT"
+                    >
+                      📖 Instruction
+                    </button>
+                  </div>
                   <label style="border: 2px dashed #475569; border-radius: 6px; padding: 14px 10px; text-align: center; color: #94a3b8; font-size: 11px; background-color: #0f172a; display: block; cursor: pointer; transition: 0.2s;">
-                    📄 Klik Muat Naik (.txt, .gpx, .kml)
+                    📄 Klik Muat Naik (.txt)
                     <input type="file" multiple accept=".txt,.gpx,.kml" @change="bacaFailSAROPS" style="display: none;" />
                   </label>
                 </div>
@@ -204,9 +213,18 @@
               <!-- TAB 2: SIMULATION (.nc) -->
               <template v-else>
                 <div v-if="canUploadOrDelete" style="background: #1e293b; border-radius: 6px; border: 1px solid #334155; border-top: 3px solid #f59e0b; padding: 12px; flex-shrink: 0;">
-                  <h4 style="margin: 0 0 8px 0; font-size: 12px; color: #fbbf24; text-transform: uppercase;">📤 UPLOAD SIMULATION</h4>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <h4 style="margin: 0; font-size: 12px; color: #fbbf24; text-transform: uppercase;">📤 UPLOAD SIMULATION</h4>
+                    <button 
+                      @click="showSimInstructionModal = true" 
+                      style="background: #d97706; color: #ffffff; border: 1px solid #fbbf24; padding: 3px 8px; font-size: 10px; font-weight: 800; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: 0.2s;"
+                      title="Panduan Lokasi Fail Simulasi SAROPS (.nc)"
+                    >
+                      📖 Instruction
+                    </button>
+                  </div>
                   <label style="border: 2px dashed #f59e0b; border-radius: 6px; padding: 14px 10px; text-align: center; color: #94a3b8; font-size: 11px; background-color: #0f172a; display: block; cursor: pointer; transition: 0.2s;">
-                    🌊 Klik Muat Naik Fail (.nc, .hdf5, .h5)
+                    🌊 Klik Muat Naik Fail (.nc)
                     <input type="file" multiple accept=".nc,.hdf5,.h5" @change="bacaFailDriftNC" style="display: none;" />
                   </label>
                 </div>
@@ -280,8 +298,56 @@
               <div style="width: 1px; height: 18px; background: #475569; margin: 0 3px;"></div>
             </template>
 
-            <!-- SEARCH / GO-TO -->
-            <input type="text" v-model="teksCarianPeta" @keydown.enter="laksanakanCarianPeta" placeholder="🔍 Lokasi / Lat, Lon..." style="width: 170px; height: 26px; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 0 6px; border-radius: 4px; font-size: 11px;" />
+            <!-- GOOGLE MAPS STYLE SEARCH / GO-TO -->
+            <div style="position: relative; display: flex; align-items: center;">
+              <div style="position: relative; display: flex; align-items: center;">
+                <input 
+                  type="text" 
+                  v-model="teksCarianPeta" 
+                  @input="padaInputCarianPeta"
+                  @keydown.enter="laksanakanCarianPeta"
+                  @focus="bukaDropdownCadangan"
+                  placeholder="🔍 Lokasi, Jeti, Pulau / Lat Lon..." 
+                  style="width: 210px; height: 26px; background: #0f172a; border: 1px solid #38bdf8; color: #fff; padding: 0 24px 0 8px; border-radius: 4px; font-size: 11px; outline: none; transition: width 0.2s;" 
+                  :style="{ borderColor: isDropdownCadanganBuka ? '#38bdf8' : '#334155' }"
+                />
+                <!-- Butang Kosongkan Carian -->
+                <button 
+                  v-if="teksCarianPeta" 
+                  @click="kosongkanCarianPeta" 
+                  style="position: absolute; right: 4px; background: none; border: none; color: #94a3b8; font-size: 11px; cursor: pointer; padding: 2px 4px; line-height: 1;"
+                  title="Kosongkan carian"
+                >✕</button>
+              </div>
+
+              <!-- DROPDOWN CADANGAN AUTONOMOUS (GOOGLE MAPS STYLE) -->
+              <div 
+                v-if="isDropdownCadanganBuka && cadanganCarian.length > 0" 
+                style="position: absolute; top: 32px; left: 0; width: 280px; max-height: 280px; overflow-y: auto; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(12px); border: 1.5px solid #38bdf8; border-radius: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.8); z-index: 1020; display: flex; flex-direction: column; animation: popupAnim 0.15s ease-out;"
+              >
+                <div style="font-size: 9px; font-weight: 800; color: #38bdf8; padding: 6px 10px; border-bottom: 1px solid #1e293b; background: rgba(2, 6, 23, 0.6); display: flex; justify-content: space-between; align-items: center;">
+                  <span>📍 CADANGAN CARIAN (MY & SERANTAU)</span>
+                  <span v-if="isSedangCari" style="font-size: 9px; color: #fbbf24;">Mencari...</span>
+                </div>
+                <div 
+                  v-for="(item, idx) in cadanganCarian" 
+                  :key="idx" 
+                  @click="pilihCadanganCarian(item)"
+                  style="padding: 8px 10px; border-bottom: 1px solid #1e293b; cursor: pointer; display: flex; flex-direction: column; gap: 2px; transition: background 0.15s;"
+                  onmouseover="this.style.background='rgba(56, 189, 248, 0.15)'" 
+                  onmouseout="this.style.background='transparent'"
+                >
+                  <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: bold; color: #f8fafc;">
+                    <span v-if="item.isCoord" style="color: #38bdf8;">🧭</span>
+                    <span v-else style="color: #f59e0b;">📍</span>
+                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ item.title }}</span>
+                  </div>
+                  <div style="font-size: 9px; color: #94a3b8; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {{ item.subtitle }}
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <div style="width: 1px; height: 18px; background: #475569; margin: 0 3px;"></div>
 
@@ -299,6 +365,8 @@
                 <label style="display:flex; align-items:center; gap:6px; font-size:10px; cursor:pointer;"><input type="checkbox" v-model="showLayerMSRR" @change="togolLayerMSRR" /> Sempadan MSRR</label>
                 <label style="display:flex; align-items:center; gap:6px; font-size:10px; cursor:pointer;"><input type="checkbox" v-model="showLayerPelantar" @change="togolLayerPelantar" /> Pelantar Benua 1979</label>
                 <label style="display:flex; align-items:center; gap:6px; font-size:10px; cursor:pointer;"><input type="checkbox" v-model="showOpenSeaMap" @change="togolOpenSeaMap" /> OpenSeaMap</label>
+                <div style="font-size: 9px; font-weight: 800; color: #38bdf8; margin-top: 4px;">LABEL TAKTIKAL</div>
+                <label style="display:flex; align-items:center; gap:6px; font-size:10px; cursor:pointer;"><input type="checkbox" v-model="showLabelZonAset" @change="tukarKesTaktikal" /> Label Zon & Aset (SAP)</label>
               </div>
             </div>
           </div>
@@ -663,6 +731,14 @@
               🎯 Lihat di Peta
             </button>
             <button 
+              v-if="notif.msgId && (notif.type === 'kecemasan' || notif.type === 'penemuan')" 
+              @click="sahkanDanPadamDariNotifikasi(notif)" 
+              style="background: #16a34a; color: white; border: none; padding: 3px 8px; border-radius: 4px; font-size: 9px; font-weight: bold; cursor: pointer;"
+              title="Sahkan dan padam tanda alert daripada peta seluruh stesen"
+            >
+              ✅ Acknowledge
+            </button>
+            <button 
               v-if="notif.type === 'mesej'" 
               @click="bukaTabCommDariNotifikasi(notif)" 
               style="background: #0284c7; color: white; border: none; padding: 3px 8px; border-radius: 4px; font-size: 9px; font-weight: bold; cursor: pointer;"
@@ -783,6 +859,96 @@
         </div>
       </div>
 
+      <!-- MODAL PANDUAN & CONTOH FORMAT FAIL SAROPS SAP (.TXT) -->
+      <div v-if="showSapInstructionModal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.78); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(5px);">
+        <div style="background: #0f172a; width: 640px; max-width: 94vw; max-height: 90vh; border-radius: 8px; border: 1.5px solid #38bdf8; padding: 18px 20px; color: #f8fafc; display: flex; flex-direction: column; box-shadow: 0 20px 40px rgba(0,0,0,0.85); animation: popupAnim 0.15s ease-out;">
+          <!-- Header Modal -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px;">📋</span>
+              <h3 style="margin: 0; font-size: 14px; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;">Contoh Format Fail SAROPS SAP (.TXT)</h3>
+            </div>
+            <button @click="showSapInstructionModal = false" style="background: none; border: none; color: #94a3b8; font-size: 18px; cursor: pointer; line-height: 1; padding: 4px;" title="Tutup">✕</button>
+          </div>
+
+          <!-- Body Panduan & Kod -->
+          <div style="overflow-y: auto; padding-right: 6px; display: flex; flex-direction: column; gap: 12px; font-size: 11px;">
+            <div style="background: #1e293b; border-radius: 6px; border-left: 3px solid #38bdf8; padding: 10px 12px; line-height: 1.5; color: #cbd5e1;">
+              <strong style="color: #38bdf8;">ℹ️ Panduan Penyediaan Fail:</strong>
+              <ul style="margin: 4px 0 0 16px; padding: 0;">
+                <li>Pilih <strong>SAR CASE IDENTITY</strong> yang berkaitan sebelum memuat naik.</li>
+                <li>Fail <code>.txt</code> perlu mengandungi medan utama: <strong>SRU NAME</strong>, <strong>SEARCH PATTERN</strong>, <strong>CORNER PT #1 - #4</strong>, <strong>CSP</strong>, dan senarai <strong>WAYPOINT LIST</strong>.</li>
+                <li>Format koordinat boleh ditulis sama ada: <code>02-55.30N 101-15.40E</code>, <code>02°55'18"N 101°15'24"E</code>, atau Decimal Degrees <code>2.9216, 101.2566</code>.</li>
+              </ul>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+              <span style="font-size: 11px; font-weight: bold; color: #94a3b8;">Contoh Fail Sebenar: <code style="color: #34d399; font-size: 12px; font-weight: bold;">KM JUJUR-Visual(standard).txt</code></span>
+              <button 
+                @click="salinContohSAP" 
+                :style="{ background: copiedSapSample ? '#059669' : '#0284c7' }"
+                style="color: white; border: none; padding: 5px 12px; font-size: 11px; font-weight: bold; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: 0.2s;"
+              >
+                {{ copiedSapSample ? '✅ Berjaya Disalin!' : '📋 Salin Contoh TXT' }}
+              </button>
+            </div>
+
+            <!-- Teks Format Monospace Penuh -->
+            <pre style="background: #020617; border: 1px solid #334155; border-radius: 6px; padding: 12px 14px; color: #a5f3fc; font-family: 'Consolas', 'Courier New', monospace; font-size: 11px; line-height: 1.45; overflow-x: auto; white-space: pre; margin: 0; user-select: all;">{{ CONTOH_SAP_KM_JUJUR }}</pre>
+          </div>
+
+          <!-- Footer Modal -->
+          <div style="margin-top: 14px; border-top: 1px solid #334155; padding-top: 12px; display: flex; justify-content: flex-end; gap: 8px;">
+            <button @click="showSapInstructionModal = false" style="padding: 7px 18px; background: #334155; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px;">Tutup</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL PANDUAN LOKASI FAIL SIMULASI (.NC) -->
+      <div v-if="showSimInstructionModal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(5px);">
+        <div style="background: #0f172a; width: 850px; max-width: 95vw; max-height: 92vh; border-radius: 8px; border: 1.5px solid #fbbf24; padding: 18px 20px; color: #f8fafc; display: flex; flex-direction: column; box-shadow: 0 20px 40px rgba(0,0,0,0.85); animation: popupAnim 0.15s ease-out;">
+          <!-- Header Modal -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px;">🌀</span>
+              <h3 style="margin: 0; font-size: 14px; font-weight: 800; color: #fbbf24; text-transform: uppercase; letter-spacing: 0.5px;">Panduan Lokasi Fail Simulasi SAROPS (.NC)</h3>
+            </div>
+            <button @click="showSimInstructionModal = false" style="background: none; border: none; color: #94a3b8; font-size: 18px; cursor: pointer; line-height: 1; padding: 4px;" title="Tutup">✕</button>
+          </div>
+
+          <!-- Body Modal (Scrollable Images) -->
+          <div style="overflow-y: auto; padding-right: 6px; display: flex; flex-direction: column; gap: 14px; font-size: 11px;">
+            <div style="background: #1e293b; border-radius: 6px; border-left: 3px solid #fbbf24; padding: 10px 12px; line-height: 1.5; color: #cbd5e1;">
+              <strong style="color: #fbbf24;">ℹ️ Panduan Mendapatkan Fail Simulasi:</strong>
+              <div style="margin-top: 4px;">
+                Sila rujuk panduan visual di bawah untuk mencari dan memuat turun fail output simulasi SAROPS (format <code>.nc</code>) daripada sistem SAROPS sebelum memuat naik ke papan pemuka ini.
+              </div>
+            </div>
+
+            <!-- Gambar 1 (Atas) -->
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div style="font-weight: bold; color: #38bdf8; font-size: 11px;">1. Lokasi & Pilihan Fail Simulasi (Langkah 1):</div>
+              <div style="background: #020617; border: 1px solid #334155; border-radius: 6px; padding: 6px; display: flex; justify-content: center;">
+                <img :src="imgLokasiSarops1" alt="Lokasi Fail SAROPS 1" style="max-width: 100%; height: auto; border-radius: 4px; display: block; object-fit: contain;" />
+              </div>
+            </div>
+
+            <!-- Gambar 2 (Bawah) -->
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div style="font-weight: bold; color: #38bdf8; font-size: 11px;">2. Folder Simpanan & Pemilihan Fail .nc (Langkah 2):</div>
+              <div style="background: #020617; border: 1px solid #334155; border-radius: 6px; padding: 6px; display: flex; justify-content: center;">
+                <img :src="imgLokasiSarops2" alt="Lokasi Fail SAROPS 2" style="max-width: 100%; height: auto; border-radius: 4px; display: block; object-fit: contain;" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer Modal -->
+          <div style="margin-top: 14px; border-top: 1px solid #334155; padding-top: 12px; display: flex; justify-content: flex-end; gap: 8px;">
+            <button @click="showSimInstructionModal = false" style="padding: 7px 18px; background: #334155; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px;">Tutup</button>
+          </div>
+        </div>
+      </div>
+
     </div>
 
   </div>
@@ -795,6 +961,8 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import logoBclbb from './assets/logo_bclbb.png'
 import bgLogin from './assets/background_1st_page.jpg'
+import imgLokasiSarops1 from './assets/lokasi_file_sarops_1.jpg'
+import imgLokasiSarops2 from './assets/lokasi_file_sarops_2.jpg'
 import { readFullSARSimulation, computeTimeStepPOC, renderPOCToCanvasDataURL } from './services/driftSimulation'
 
 // STATE PENGGUNA & AUTH
@@ -932,8 +1100,86 @@ const chatContainerRef = ref(null)
 const showLoadCaseModal = ref(false)
 const showAddCaseModal = ref(false)
 const showDeleteModal = ref(false)
+const showSapInstructionModal = ref(false)
+const showSimInstructionModal = ref(false)
+const copiedSapSample = ref(false)
 const sruTargetToPadam = ref(null)
 const formAddKes = ref({ case_no: '', case_name: '', search_object: '' })
+
+const CONTOH_SAP_KM_JUJUR = `SEARCH PATTERN NAME: KM JUJUR-Visual(standard)
+SRU ID: KM JUJUR
+SEARCH AREA LENGTH: 6.00 NM
+SEARCH AREA WIDTH: 6.00 NM
+SEARCH AREA ORIENTATION: 090 DEG T
+CREEP DIRECTION: 180 DEG T
+TRACK SPACING: 0.50 NM
+SEARCH SPEED: 10.0 KTS
+
+CORNER PT #1: 04-51.20N 103-37.50E
+CORNER PT #2: 04-51.20N 103-43.50E
+CORNER PT #3: 04-45.20N 103-43.50E
+CORNER PT #4: 04-45.20N 103-37.50E
+CENTER: 04-48.20N 103-40.50E
+CSP: 04-51.20N 103-37.50E
+
+WAYPOINT LIST:
+1   04-51.20N 103-37.50E
+2   04-51.20N 103-43.50E
+3   04-50.70N 103-43.50E
+4   04-50.70N 103-37.50E
+5   04-50.20N 103-37.50E
+6   04-50.20N 103-43.50E
+7   04-49.70N 103-43.50E
+8   04-49.70N 103-37.50E
+9   04-49.20N 103-37.50E
+10  04-49.20N 103-43.50E
+11  04-48.70N 103-43.50E
+12  04-48.70N 103-37.50E
+13  04-48.20N 103-37.50E
+14  04-48.20N 103-43.50E
+15  04-47.70N 103-43.50E
+16  04-47.70N 103-37.50E
+17  04-47.20N 103-37.50E
+18  04-47.20N 103-43.50E
+19  04-46.70N 103-43.50E
+20  04-46.70N 103-37.50E
+21  04-46.20N 103-37.50E
+22  04-46.20N 103-43.50E
+23  04-45.70N 103-43.50E
+24  04-45.70N 103-37.50E
+25  04-45.20N 103-37.50E
+26  04-45.20N 103-43.50E`
+
+const salinContohSAP = () => {
+  const sample = CONTOH_SAP_KM_JUJUR
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(sample).then(() => {
+      copiedSapSample.value = true
+      setTimeout(() => { copiedSapSample.value = false }, 2500)
+    }).catch(() => {
+      fallbackCopyText(sample)
+    })
+  } else {
+    fallbackCopyText(sample)
+  }
+}
+
+const fallbackCopyText = (text) => {
+  const textArea = document.createElement("textarea")
+  textArea.value = text
+  textArea.style.position = "fixed"
+  textArea.style.left = "-999999px"
+  document.body.appendChild(textArea)
+  textArea.focus()
+  textArea.select()
+  try {
+    document.execCommand('copy')
+    copiedSapSample.value = true
+    setTimeout(() => { copiedSapSample.value = false }, 2500)
+  } catch (err) {}
+  document.body.removeChild(textArea)
+}
 
 // PENAPIS MASA SEJARAH (TRACK HISTORY FILTERS)
 const filterMasaMula = ref('')
@@ -947,10 +1193,16 @@ const totalLoadedPoints = computed(() => {
 
 // MAP TOOLS & LAYERS CONTROLS
 const teksCarianPeta = ref('')
+const cadanganCarian = ref([])
+const isSedangCari = ref(false)
+const isDropdownCadanganBuka = ref(false)
+let searchDebounceTimer = null
+let currentSearchMarker = null
 const isLayerMenuOpen = ref(false)
 const showLayerMSRR = ref(false)
 const showLayerPelantar = ref(false)
 const showOpenSeaMap = ref(true)
+const showLabelZonAset = ref(true)
 const selectedBaseLayer = ref('osm')
 const windyCoords = ref({ lat: '4.2000', lon: '109.5000', zoom: 5 })
 
@@ -1615,30 +1867,221 @@ const togolLayerMSRR = () => { if (mapInstance) showLayerMSRR.value ? mapInstanc
 const togolLayerPelantar = () => { if (mapInstance) showLayerPelantar.value ? mapInstance.addLayer(layerPelantarInstance) : mapInstance.removeLayer(layerPelantarInstance) }
 const togolOpenSeaMap = () => { if (mapInstance) showOpenSeaMap.value ? mapInstance.addLayer(layerSeaMapInstance) : mapInstance.removeLayer(layerSeaMapInstance) }
 
-const laksanakanCarianPeta = async () => {
-  const val = teksCarianPeta.value.trim()
-  if (!val || !mapInstance) return
-  
-  const match = val.match(/^([-+]?\d*\.?\d+)[,\s]+([-+]?\d*\.?\d+)$/)
-  if (match) {
-    const lat = parseFloat(match[1])
-    const lon = parseFloat(match[2])
-    if (!isNaN(lat) && !isNaN(lon)) {
-      mapInstance.flyTo([lat, lon], 11)
-      L.marker([lat, lon]).addTo(toolsLayer).bindPopup(`📍 Carian: ${val}`).openPopup()
-      return
+// ============================================================================
+// 4.5. MODUL CARIAN PINTAR (UNIVERSAL COORDINATES & REGIONAL AUTOCOMPLETE)
+// ============================================================================
+const parseSebarangKoordinat = (inputStr) => {
+  if (!inputStr || typeof inputStr !== 'string') return null
+  const s = inputStr.trim()
+  if (!s) return null
+
+  // 1. Format DDM / DMS dengan kompas N/S/E/W (cth: 04° 11.11' N 100° 54.70' E, 04 11.11N 100 54.70E, 4° 11' 06.6" N 100° 54' 42.0" E)
+  const compassRegex = /([0-9]{1,3})[°\s\-dD]+([0-9]{1,2}(?:\.[0-9]+)?)[′'\s\-mM]*(?:([0-9]{1,2}(?:\.[0-9]+)?)[″"\s\-sS]*)?\s*([NSEWnsew])/g
+  const matches = [...s.matchAll(compassRegex)]
+
+  if (matches.length === 2) {
+    let lat = null, lon = null
+    for (const m of matches) {
+      const deg = parseFloat(m[1])
+      const min = parseFloat(m[2]) || 0
+      const sec = parseFloat(m[3]) || 0
+      const dir = m[4].toUpperCase()
+
+      let dec = deg + (min / 60) + (sec / 3600)
+      if (dir === 'S' || dir === 'W') dec = -dec
+
+      if (dir === 'N' || dir === 'S') lat = dec
+      else if (dir === 'E' || dir === 'W') lon = dec
+    }
+    if (lat !== null && lon !== null && !isNaN(lat) && !isNaN(lon)) {
+      return { lat, lon, format: 'DDM/DMS' }
     }
   }
 
+  // 2. Format Padat GPS/NMEA (cth: 0411.11N 10054.70E atau 0411.117N 10054.701E)
+  const compactRegex = /^([0-9]{2})([0-9]{2}\.[0-9]+)\s*([NSns])[,\s]+([0-9]{3})([0-9]{2}\.[0-9]+)\s*([EWew])$/
+  const compactMatch = s.match(compactRegex)
+  if (compactMatch) {
+    let lat = parseFloat(compactMatch[1]) + parseFloat(compactMatch[2]) / 60
+    if (compactMatch[3].toUpperCase() === 'S') lat = -lat
+    let lon = parseFloat(compactMatch[4]) + parseFloat(compactMatch[5]) / 60
+    if (compactMatch[6].toUpperCase() === 'W') lon = -lon
+    return { lat, lon, format: 'COMPACT_GPS' }
+  }
+
+  // 3. Format Decimal Degrees (DD) dengan/tanpa N/S/E/W (cth: 3.1390, 101.6869 atau 3.1390N 101.6869E)
+  const ddWithDir = /^([-+]?\d*\.?\d+)\s*([NSns])?[,\s]+([-+]?\d*\.?\d+)\s*([EWew])?$/
+  const ddMatch = s.match(ddWithDir)
+  if (ddMatch) {
+    let lat = parseFloat(ddMatch[1])
+    let lon = parseFloat(ddMatch[3])
+    if (ddMatch[2] && ddMatch[2].toUpperCase() === 'S') lat = -Math.abs(lat)
+    if (ddMatch[4] && ddMatch[4].toUpperCase() === 'W') lon = -Math.abs(lon)
+    if (!isNaN(lat) && !isNaN(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
+      return { lat, lon, format: 'DECIMAL_DEGREES' }
+    }
+  }
+
+  // 4. Format Ruang Ringkas DDM (cth: "04 11.11 100 54.70")
+  const ddmRawMatch = s.match(/^([0-9]{1,2})\s+([0-9]{1,2}(?:\.[0-9]+)?)[,\s]+([0-9]{1,3})\s+([0-9]{1,2}(?:\.[0-9]+)?)$/)
+  if (ddmRawMatch) {
+    const lat = parseFloat(ddmRawMatch[1]) + parseFloat(ddmRawMatch[2]) / 60
+    const lon = parseFloat(ddmRawMatch[3]) + parseFloat(ddmRawMatch[4]) / 60
+    if (!isNaN(lat) && !isNaN(lon) && lat <= 90 && lon <= 180) {
+      return { lat, lon, format: 'RAW_DDM' }
+    }
+  }
+
+  return null
+}
+
+const kosongkanCarianPeta = () => {
+  teksCarianPeta.value = ''
+  cadanganCarian.value = []
+  isDropdownCadanganBuka.value = false
+}
+
+const bukaDropdownCadangan = () => {
+  if (cadanganCarian.value && cadanganCarian.value.length > 0) {
+    isDropdownCadanganBuka.value = true
+  }
+}
+
+const padaInputCarianPeta = () => {
+  const val = teksCarianPeta.value.trim()
+  if (!val) {
+    cadanganCarian.value = []
+    isDropdownCadanganBuka.value = false
+    return
+  }
+
+  // 1. Semak jika pengguna memasukkan format koordinat
+  const parsedCoord = parseSebarangKoordinat(val)
+  if (parsedCoord) {
+    cadanganCarian.value = [{
+      isCoord: true,
+      title: `Titik Koordinat: ${toDDM(parsedCoord.lat, false)} | ${toDDM(parsedCoord.lon, true)}`,
+      subtitle: `Format DD: ${parsedCoord.lat.toFixed(5)}, ${parsedCoord.lon.toFixed(5)} (${parsedCoord.format})`,
+      lat: parsedCoord.lat,
+      lon: parsedCoord.lon
+    }]
+    isDropdownCadanganBuka.value = true
+    return
+  }
+
+  // 2. Debounce untuk geocoding nama tempat / pulau / jeti
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+  searchDebounceTimer = setTimeout(async () => {
+    isSedangCari.value = true
+    try {
+      // Fokus carian di Malaysia dan negara serantau maritim
+      const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&countrycodes=my,sg,id,th,bn,ph,vn&q=${encodeURIComponent(val)}`
+      const res = await fetch(url)
+      const data = await res.json()
+      if (data && data.length > 0) {
+        cadanganCarian.value = data.map(item => ({
+          isCoord: false,
+          title: item.name || item.display_name.split(',')[0],
+          subtitle: item.display_name,
+          lat: parseFloat(item.lat),
+          lon: parseFloat(item.lon),
+          type: item.type || item.class
+        }))
+        isDropdownCadanganBuka.value = true
+      } else {
+        cadanganCarian.value = []
+      }
+    } catch (err) {
+      console.warn("Ralat autocomplete geocoding:", err)
+    } finally {
+      isSedangCari.value = false
+    }
+  }, 300)
+}
+
+const pilihCadanganCarian = (item) => {
+  if (!item || isNaN(item.lat) || isNaN(item.lon)) return
+  teksCarianPeta.value = item.title
+  isDropdownCadanganBuka.value = false
+  cadanganCarian.value = []
+  letakMarkerCarianPeta(item.lat, item.lon, item.title, item.subtitle || '')
+}
+
+const letakMarkerCarianPeta = (lat, lon, tajuk, sub) => {
+  if (!mapInstance) return
+  if (currentSearchMarker) {
+    try { mapInstance.removeLayer(currentSearchMarker) } catch (e) {}
+    currentSearchMarker = null
+  }
+
+  mapInstance.flyTo([lat, lon], 13, { duration: 1.2 })
+
+  const iconCarian = L.divIcon({
+    html: `<div style="display:flex; flex-direction:column; align-items:center; transform:translate(-50%, -100%); cursor:pointer;">
+             <div style="background:rgba(2,132,199,0.95); color:#fff; font-size:10px; font-weight:bold; padding:3px 8px; border-radius:4px; border:1.5px solid #38bdf8; box-shadow:0 0 12px rgba(56,189,248,0.8); white-space:nowrap; animation:webReplayPulse 1.5s infinite;">
+               📍 ${tajuk}
+             </div>
+             <div style="width:2px; height:6px; background:#38bdf8;"></div>
+             <div style="width:8px; height:8px; border-radius:50%; background:#0284c7; border:2px solid #fff;"></div>
+           </div>`,
+    className: 'custom-label',
+    iconSize: [0, 0]
+  })
+
+  currentSearchMarker = L.marker([lat, lon], { icon: iconCarian }).addTo(toolsLayer || mapInstance)
+  
+  const ddmLat = toDDM(lat, false)
+  const ddmLon = toDDM(lon, true)
+
+  currentSearchMarker.bindPopup(`
+    <div style="font-family:sans-serif; min-width:220px; color:#0f172a; padding:4px;">
+      <div style="font-weight:bold; font-size:12px; color:#0284c7; margin-bottom:4px;">📍 ${tajuk}</div>
+      ${sub ? `<div style="font-size:10px; color:#64748b; margin-bottom:6px; line-height:1.2;">${sub}</div>` : ''}
+      <div style="background:#f1f5f9; padding:6px; border-radius:4px; font-size:10px; display:flex; flex-direction:column; gap:2px; border:1px solid #cbd5e1;">
+        <div><b>Format DDM:</b> <span style="color:#0284c7; font-weight:bold;">${ddmLat} | ${ddmLon}</span></div>
+        <div><b>Format DD:</b> ${lat.toFixed(6)}, ${lon.toFixed(6)}</div>
+      </div>
+      <button onclick="window.padamMarkerCarian && window.padamMarkerCarian()" style="margin-top:6px; width:100%; background:#ef4444; color:#fff; border:none; padding:4px; border-radius:3px; font-size:10px; font-weight:bold; cursor:pointer;">🗑️ Padam Pin Carian</button>
+    </div>
+  `).openPopup()
+}
+
+const padamMarkerCarian = () => {
+  if (currentSearchMarker && mapInstance) {
+    mapInstance.removeLayer(currentSearchMarker)
+    currentSearchMarker = null
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.padamMarkerCarian = padamMarkerCarian
+}
+
+const laksanakanCarianPeta = async () => {
+  const val = teksCarianPeta.value.trim()
+  if (!val || !mapInstance) return
+  isDropdownCadanganBuka.value = false
+
+  // 1. Semak Koordinat DDM / DMS / DD / GPS
+  const parsedCoord = parseSebarangKoordinat(val)
+  if (parsedCoord) {
+    letakMarkerCarianPeta(parsedCoord.lat, parsedCoord.lon, `Koordinat: ${toDDM(parsedCoord.lat, false)} | ${toDDM(parsedCoord.lon, true)}`, `Format DD: ${parsedCoord.lat.toFixed(6)}, ${parsedCoord.lon.toFixed(6)}`)
+    return
+  }
+
+  // 2. Jika bukan koordinat, laksanakan carian teks geocoding serantau
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}`)
+    const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&countrycodes=my,sg,id,th,bn,ph,vn&q=${encodeURIComponent(val)}`
+    const res = await fetch(url)
     const data = await res.json()
     if (data && data.length > 0) {
-      mapInstance.flyTo([parseFloat(data[0].lat), parseFloat(data[0].lon)], 11)
-      L.marker([parseFloat(data[0].lat), parseFloat(data[0].lon)]).addTo(toolsLayer).bindPopup(`📍 ${data[0].display_name}`).openPopup()
+      const top = data[0]
+      const lat = parseFloat(top.lat)
+      const lon = parseFloat(top.lon)
+      letakMarkerCarianPeta(lat, lon, top.name || top.display_name.split(',')[0], top.display_name)
     }
   } catch (e) {
-    console.error("Ralat carian lokasi:", e)
+    console.warn("Ralat carian lokasi:", e)
   }
 }
 
@@ -1664,9 +2107,24 @@ const tukarKesTaktikal = () => {
         const poly = L.polygon(pts, { 
           color: warnaTema, 
           weight: 2.5, 
-          fillOpacity: 0.15,
+          fillOpacity: 0.15, 
           fillColor: warnaTema 
-        }).bindTooltip(`Zon ${sru.kawasanNama || ''} (${sru.nama || ''})`, { direction: 'top' })
+        })
+        if (showLabelZonAset.value) {
+          // Bila ditick: label terpapar terus secara kekal tanpa perlu gerakkan kursor
+          poly.bindTooltip(`Zon ${sru.kawasanNama || ''} (${sru.nama || ''})`, { 
+            permanent: true,
+            direction: 'center', 
+            className: 'custom-sap-tooltip' 
+          }).openTooltip()
+        } else {
+          // Bila tak ditick: maklumat zon & aset hanya keluar apabila kursor digerakkan ke zon
+          poly.bindTooltip(`Zon ${sru.kawasanNama || ''} (${sru.nama || ''})`, { 
+            permanent: false,
+            direction: 'top', 
+            className: 'custom-sap-tooltip' 
+          })
+        }
         sapLayerGroup.addLayer(poly)
         boundsList.push(poly.getBounds())
       }
@@ -1681,6 +2139,13 @@ const tukarKesTaktikal = () => {
           dashArray: '6, 6', 
           opacity: 0.95 
         })
+        if (!showLabelZonAset.value) {
+          polyLine.bindTooltip(`Laluan Carian: ${sru.kawasanNama || ''} (${sru.nama || ''})`, { 
+            permanent: false,
+            direction: 'center', 
+            className: 'custom-sap-tooltip' 
+          })
+        }
         sapLayerGroup.addLayer(polyLine)
         boundsList.push(polyLine.getBounds())
       }
@@ -1693,7 +2158,7 @@ const tukarKesTaktikal = () => {
         fillOpacity: 1, 
         radius: 6, 
         weight: 2 
-      }).bindTooltip(`📍 CSP ${sru.kawasanNama || ''} (${sru.nama || ''})`, { direction: 'right' })
+      })
       sapLayerGroup.addLayer(dotCSP)
       boundsList.push(L.latLngBounds(sru.csp_coord, sru.csp_coord))
     }
@@ -1782,7 +2247,7 @@ const kemaskiniMarkerPenemuanDanKecemasan = () => {
           <div><b>Waktu:</b> ${waktuStr}</div>
           <div><b>Kedudukan:</b> ${toDDM(lat, false)} | ${toDDM(lon, true)}</div>
           <div style="margin:5px 0; font-size:10px; color:#991b1b; background:#fef2f2; padding:4px 6px; border-radius:4px; border:1px solid #fecaca;">${msg.message}</div>
-          <button onclick="window.padamMarkerAlertManual && window.padamMarkerAlertManual(${msg.id})" style="width:100%; background:#ef4444; color:#fff; border:none; padding:4px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer;">🗑️ Padam Tanda Dari Peta</button>
+          <button onclick="window.padamMarkerAlertManual && window.padamMarkerAlertManual(${msg.id})" style="width:100%; background:#16a34a; color:#fff; border:none; padding:6px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;"><span>✅</span><span>Sahkan & Padam Alert (Acknowledge)</span></button>
         </div>
       `)
     } else if (isPenemuan) {
@@ -1805,7 +2270,7 @@ const kemaskiniMarkerPenemuanDanKecemasan = () => {
           <div><b>Waktu:</b> ${waktuStr}</div>
           <div><b>Kedudukan:</b> ${toDDM(lat, false)} | ${toDDM(lon, true)}</div>
           <div style="margin:5px 0; font-size:10px; color:#92400e; background:#fffbeb; padding:4px 6px; border-radius:4px; border:1px solid #fde68a;">${msg.message}</div>
-          <button onclick="window.padamMarkerAlertManual && window.padamMarkerAlertManual(${msg.id})" style="width:100%; background:#ef4444; color:#fff; border:none; padding:4px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer;">🗑️ Padam Tanda Dari Peta</button>
+          <button onclick="window.padamMarkerAlertManual && window.padamMarkerAlertManual(${msg.id})" style="width:100%; background:#16a34a; color:#fff; border:none; padding:6px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;"><span>✅</span><span>Sahkan & Padam Alert (Acknowledge)</span></button>
         </div>
       `)
     }
@@ -1882,7 +2347,7 @@ const bacaFailSAROPS = async (event) => {
       const matchPattern = kandunganRAW.match(/(?:SEARCH PATTERN NAME|PATTERN)[^\:\n]*?\:\s*([^\n\r]+)/i)
       const matchSruId = kandunganRAW.match(/(?:SRU ID|SRU NAME|ASSET)[^\:\n]*?\:\s*([^\n\r]+)/i)
       const matchCaseName = kandunganRAW.match(/(?:CASE NAME|INCIDENT)[^\:\n]*?\:\s*([^\n\r]+)/i)
-      const matchZone = kandunganRAW.match(/(?:ZONE|AREA)[^\:\n]*?\:\s*([^\n\r]+)/i)
+      const matchZone = kandunganRAW.match(/(?:SEARCH AREA NAME|SEARCH ZONE|ZONE NAME|SECTOR|AREA NAME)\s*:\s*([^\n\r]+)/i)
 
       let patternField = matchPattern ? matchPattern[1].trim() : ''
       if (patternField.includes(':')) {
@@ -1895,7 +2360,7 @@ const bacaFailSAROPS = async (event) => {
 
       if (matchSruId) namaSru = matchSruId[1].trim()
       if (matchZone) kawasanNama = matchZone[1].trim()
-      if (matchCaseName && !kawasanNama) kawasanNama = matchCaseName[1].trim()
+      if (matchCaseName && (!kawasanNama || kawasanNama === 'SEARCH AREA')) kawasanNama = matchCaseName[1].trim()
 
       if (extension === 'gpx') {
         const parser = new DOMParser()
@@ -1975,7 +2440,7 @@ const bacaFailSAROPS = async (event) => {
       if (!namaSru || namaSru === 'BOT SAYA') {
         let patternStr = corakPenuh || patternField || ''
         if (patternStr) {
-          let extracted = patternStr.replace(/-?(VISUAL|IR|RADAR|NVG|OPTICAL|FLIR)$/i, '').replace(/\s*SEARCH$/i, '').trim()
+          let extracted = patternStr.replace(/-?(VISUAL|IR|RADAR|NVG|OPTICAL|FLIR)(\s*\([^)]*\))?$/i, '').replace(/\s*SEARCH$/i, '').trim()
           if (extracted && extracted.toUpperCase() !== 'PARALLEL' && extracted.toUpperCase() !== 'CREEPING' && extracted.toUpperCase() !== 'EXPANDING SQUARE' && extracted.toUpperCase() !== 'SECTOR') {
             namaSru = extracted
           }
@@ -1984,16 +2449,19 @@ const bacaFailSAROPS = async (event) => {
 
       if (!namaSru || namaSru === 'BOT SAYA') {
         let baseName = namaFail.replace(/\.[^/.]+$/, '').trim()
-        let cleanBase = baseName.replace(/-?(VISUAL|IR|RADAR|NVG|OPTICAL|FLIR)$/i, '').replace(/\s*SEARCH$/i, '').trim()
+        let cleanBase = baseName.replace(/-?(VISUAL|IR|RADAR|NVG|OPTICAL|FLIR)(\s*\([^)]*\))?$/i, '').replace(/\s*SEARCH$/i, '').trim()
         if (cleanBase && cleanBase.toUpperCase() !== 'PARALLEL' && cleanBase.toUpperCase() !== 'PLAN' && cleanBase.toUpperCase() !== 'SAROPS') {
           namaSru = cleanBase
         }
       }
 
+      let polaNamaBersih = corakPenuh.replace(/-?(VISUAL|IR|RADAR|NVG|OPTICAL|FLIR)(\s*\([^)]*\))?$/i, '').replace(/\s*SEARCH$/i, '').trim()
+      if (!polaNamaBersih || polaNamaBersih === namaSru) polaNamaBersih = 'PARALLEL'
+
       await supabase.from('sar_plans').insert([{
         case_id: currentActiveCaseId,
         sru_name: namaSru,
-        pattern_name: corakPenuh.replace(/\s*SEARCH$/i, '').trim() || 'PARALLEL',
+        pattern_name: polaNamaBersih,
         zone_name: kawasanNama,
         center_coord: koordinatCenter,
         csp_coord: koordinatCSP,
@@ -2833,6 +3301,7 @@ const tunjukNotifikasi = (item) => {
   const notifId = Date.now() + Math.floor(Math.random() * 1000)
   const notifObj = {
     id: notifId,
+    msgId: item.msgId || item.msg_id || item.id || null,
     type: item.type,
     title: item.title,
     sender: item.sender || 'SRU',
@@ -2849,13 +3318,22 @@ const tunjukNotifikasi = (item) => {
 
   mainkanBunyiNotifikasi(item.type)
 
+  // Kekalkan amaran kecemasan/penemuan lebih lama (20s) atau sehingga di-acknowledge
+  const timeoutMs = (item.type === 'kecemasan' || item.type === 'penemuan') ? 20000 : 8000
   setTimeout(() => {
     buangNotifikasi(notifId)
-  }, 8000)
+  }, timeoutMs)
 }
 
 const buangNotifikasi = (id) => {
   senaraiNotifikasi.value = senaraiNotifikasi.value.filter(n => n.id !== id)
+}
+
+const sahkanDanPadamDariNotifikasi = async (notif) => {
+  if (notif.msgId) {
+    await padamMarkerAlertManual(notif.msgId)
+  }
+  buangNotifikasi(notif.id)
 }
 
 const fokusNotifikasiPeta = (notif) => {
@@ -2943,6 +3421,7 @@ const langganMesejRealtimeSupabase = () => {
           if (isKecemasan) {
             tunjukNotifikasi({
               type: 'kecemasan',
+              msgId: msg.id,
               title: '🚨 AMARAN KECEMASAN / MOB',
               sender: msg.sender,
               message: msg.message,
@@ -2953,6 +3432,7 @@ const langganMesejRealtimeSupabase = () => {
           } else if (isPenemuan) {
             tunjukNotifikasi({
               type: 'penemuan',
+              msgId: msg.id,
               title: '📍 LAPORAN PENEMUAN / SIGHTING',
               sender: msg.sender,
               message: msg.message,
@@ -2963,6 +3443,7 @@ const langganMesejRealtimeSupabase = () => {
           } else {
             tunjukNotifikasi({
               type: 'mesej',
+              msgId: msg.id,
               title: '💬 Mesej Baharu COMM',
               sender: msg.sender,
               message: msg.message,
@@ -3156,6 +3637,24 @@ watch(activeRightSidebarTab, (tab) => {
 }
 .custom-marker-tooltip::before {
   display: none !important;
+}
+
+/* TOOLTIPS ZON & ASET PELAN SAROPS (FONT HITAM KEMAS BERKONTRAS TINGGI) */
+.custom-sap-tooltip {
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #000000 !important;
+  border: 1.5px solid #0f172a !important;
+  border-radius: 4px !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  font-family: 'Segoe UI', Roboto, sans-serif !important;
+  padding: 3px 8px !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35) !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+}
+.custom-sap-tooltip::before {
+  border-top-color: #0f172a !important;
 }
 
 @keyframes popupAnim { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
