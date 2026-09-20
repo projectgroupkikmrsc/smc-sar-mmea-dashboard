@@ -3755,7 +3755,7 @@ const prosesLoginMMEA = async () => {
     expectedPassword = 'admin@123'
   }
 
-  if (loginForm.value.password !== expectedPassword && !(loginForm.value.stationId === 'Admin System' && loginForm.value.password === 'mrsc@123')) {
+  if (loginForm.value.password !== expectedPassword) {
     loginError.value = 'Security Password tidak sah!'
     return
   }
